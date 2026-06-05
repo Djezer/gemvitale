@@ -1083,6 +1083,571 @@ function FeedbackScreen({ state, onSubmit }) {
 // ═══════════════════════════════════════════════════════════
 // PLAN SCREEN — choix d'offre
 // ═══════════════════════════════════════════════════════════
+
+// ═══════════════════════════════════════════════════════════
+// KRYOS QUESTIONNAIRE — intro + formulaire
+// ═══════════════════════════════════════════════════════════
+function KryosQuestionnaire({ facetteId, onDone, onSkip }) {
+  const f = FACETTES.find(fc => fc.id === facetteId);
+  const questions = QUESTIONS_PROGRAMME[facetteId] || QUESTIONS_PROGRAMME.athlete;
+  const intro = KRYOS_PROGRAMME_INTRO[facetteId] || KRYOS_PROGRAMME_INTRO.athlete;
+
+  const [phase, setPhase] = useState("intro"); // intro | form
+  const [introIdx, setIntroIdx] = useState(0);
+  const [introDone, setIntroDone] = useState(false);
+  const [introOut, setIntroOut] = useState("");
+  const [answers, setAnswers] = useState({});
+  const [loading, setLoading] = useState(false);
+  const timerRef = useRef(null);
+
+  const introLine = intro.lines[introIdx];
+  const rgb = f?.rgb || "0,255,204";
+  const color = f?.color || "#00ffcc";
+
+  // Typewriter effect
+  useEffect(() => {
+    if (phase !== "intro") return;
+    setIntroOut(""); setIntroDone(false);
+    let i = 0;
+    clearInterval(timerRef.current);
+    timerRef.current = setInterval(() => {
+      i++; setIntroOut(introLine.slice(0, i));
+      if (i >= introLine.length) { clearInterval(timerRef.current); setIntroDone(true); }
+    }, 22);
+    return () => clearInterval(timerRef.current);
+  }, [introIdx, phase]);
+
+  const advanceIntro = () => {
+    if (!introDone) { clearInterval(timerRef.current); setIntroOut(introLine); setIntroDone(true); return; }
+    if (introIdx < intro.lines.length - 1) setIntroIdx(i => i + 1);
+    else setPhase("form");
+  };
+
+  const allAnswered = questions.filter(q => q.type === "select").every(q => answers[q.id]);
+
+  const handleSubmit = async () => {
+    setLoading(true);
+    onDone(answers);
+  };
+
+  // ── INTRO PHASE (style KryosModal) ──
+  if (phase === "intro") return (
+    <div onClick={advanceIntro} style={{ position:"fixed",inset:0,zIndex:2000,
+      display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"flex-end",
+      background:"rgba(2,2,12,.96)", animation:"fadeInFast .22s ease" }}>
+      <div style={{ position:"absolute",top:36,left:0,right:0,textAlign:"center" }}>
+        <p style={{ color:`rgba(${rgb},.4)`,fontSize:9,fontFamily:"'Orbitron',monospace",letterSpacing:5 }}>{intro.title}</p>
+      </div>
+      <button onClick={e=>{e.stopPropagation();onSkip();}} style={{ position:"absolute",top:36,right:20,background:"none",border:"none",color:"rgba(255,255,255,.2)",fontSize:9,fontFamily:"'Orbitron',monospace",cursor:"pointer",letterSpacing:2 }}>PASSER</button>
+      <div style={{ marginBottom:-8,zIndex:1,animation:"float 4s ease-in-out infinite" }}>
+        <GemFrog color={color} size={152} mood={intro.mood||"wise"} />
+      </div>
+      <div style={{ width:"100%",maxWidth:520,background:`linear-gradient(180deg,rgba(6,6,22,.98) 0%,rgba(4,4,16,1) 100%)`,
+        borderTop:`1px solid rgba(${rgb},.18)`,padding:"26px 22px 44px",position:"relative" }}>
+        {[[true,true],[true,false],[false,true],[false,false]].map(([t,l],i)=>(
+          <div key={i} style={{ position:"absolute",top:t?9:"auto",bottom:t?"auto":9,left:l?9:"auto",right:l?"auto":9,width:12,height:12,
+            borderTop:t?`1px solid rgba(${rgb},.32)`:"none",borderBottom:t?"none":`1px solid rgba(${rgb},.32)`,
+            borderLeft:l?`1px solid rgba(${rgb},.32)`:"none",borderRight:l?"none":`1px solid rgba(${rgb},.32)` }}/>
+        ))}
+        <div style={{ display:"flex",alignItems:"center",gap:8,marginBottom:14 }}>
+          <div style={{ width:5,height:5,borderRadius:"50%",background:color,boxShadow:`0 0 7px ${color}`,animation:"pulse 2s infinite" }}/>
+          <span style={{ color,fontSize:10,fontFamily:"'Orbitron',monospace",letterSpacing:3 }}>KRYOS</span>
+          <span style={{ color:`rgba(${rgb},.25)`,fontSize:9,fontFamily:"'Orbitron',monospace" }}>— PROGRAMME PERSONNALISÉ</span>
+        </div>
+        <p style={{ color:"rgba(255,255,255,.82)",fontSize:13.5,lineHeight:1.8,minHeight:60,fontFamily:"'Share Tech Mono',monospace" }}>
+          {introOut}{!introDone&&<span style={{color,animation:"blink .65s infinite"}}>█</span>}
+        </p>
+        <div style={{ display:"flex",gap:4,marginTop:18,justifyContent:"center" }}>
+          {intro.lines.map((_,i)=>(
+            <div key={i} style={{ height:2,borderRadius:1,width:i===introIdx?18:5,
+              background:i<=introIdx?color:`rgba(${rgb},.16)`,transition:"all .3s" }}/>
+          ))}
+        </div>
+        {introDone&&<p style={{ textAlign:"center",marginTop:12,color:`rgba(${rgb},.32)`,fontSize:8,fontFamily:"'Orbitron',monospace",letterSpacing:3,animation:"pulse 1.5s infinite" }}>
+          {introIdx<intro.lines.length-1?"[ CONTINUER ]":"[ RÉPONDRE AUX QUESTIONS ]"}
+        </p>}
+      </div>
+    </div>
+  );
+
+  // ── FORM PHASE ──
+  return (
+    <div style={{ position:"fixed",inset:0,zIndex:2000,background:"rgba(2,2,12,.97)",overflowY:"auto",animation:"fadeInFast .22s ease" }}>
+      <div style={{ maxWidth:520,margin:"0 auto",padding:"24px 18px 80px" }}>
+        {/* Header */}
+        <div style={{ display:"flex",alignItems:"center",gap:10,marginBottom:24 }}>
+          <GemFrog color={color} size={32} mood="curious"/>
+          <div>
+            <p style={{ color,fontFamily:"'Orbitron',monospace",fontSize:11,letterSpacing:3 }}>KRYOS — QUESTIONS</p>
+            <p style={{ color:"rgba(255,255,255,.2)",fontSize:9,fontFamily:"'Share Tech Mono',monospace" }}>Réponds honnêtement pour un programme adapté</p>
+          </div>
+          <button onClick={onSkip} style={{ marginLeft:"auto",background:"none",border:"none",color:"rgba(255,255,255,.2)",fontSize:9,fontFamily:"'Orbitron',monospace",cursor:"pointer",letterSpacing:1 }}>PASSER</button>
+        </div>
+
+        {/* Questions */}
+        <div style={{ display:"flex",flexDirection:"column",gap:14 }}>
+          {questions.map((q, i) => (
+            <div key={q.id} style={{ animation:`fadeIn .3s ease ${i*0.05}s both` }}>
+              <div style={{ display:"flex",alignItems:"center",gap:8,marginBottom:8 }}>
+                <div style={{ width:18,height:18,borderRadius:"50%",background:`${color}18`,border:`1px solid ${color}33`,
+                  display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0 }}>
+                  <span style={{ color,fontSize:8,fontFamily:"'Orbitron',monospace",fontWeight:700 }}>{i+1}</span>
+                </div>
+                <p style={{ color:"rgba(255,255,255,.6)",fontSize:11,fontFamily:"'Orbitron',monospace",letterSpacing:1 }}>{q.label}</p>
+              </div>
+
+              {q.type === "select" ? (
+                <div style={{ display:"flex",flexDirection:"column",gap:5 }}>
+                  {q.options.map(opt => (
+                    <button key={opt} onClick={() => setAnswers(a=>({...a,[q.id]:opt}))}
+                      style={{ padding:"9px 13px",textAlign:"left",borderRadius:4,cursor:"pointer",transition:"all .15s",
+                        background:answers[q.id]===opt?`${color}12`:"rgba(255,255,255,.02)",
+                        border:`1px solid ${answers[q.id]===opt?color+"44":"rgba(255,255,255,.06)"}`,
+                        color:answers[q.id]===opt?color:"rgba(255,255,255,.35)",
+                        fontSize:11,fontFamily:"'Share Tech Mono',monospace" }}>
+                      <span style={{ marginRight:8,opacity:answers[q.id]===opt?1:.3 }}>{answers[q.id]===opt?"◆":"◇"}</span>
+                      {opt}
+                    </button>
+                  ))}
+                </div>
+              ) : (
+                <textarea value={answers[q.id]||""} onChange={e=>setAnswers(a=>({...a,[q.id]:e.target.value}))}
+                  placeholder={q.placeholder} rows={2}
+                  style={{ width:"100%",padding:"10px 12px",background:"rgba(255,255,255,.03)",
+                    border:`1px solid ${answers[q.id]?""+color+"33":"rgba(255,255,255,.08)"}`,
+                    borderRadius:4,color:"rgba(255,255,255,.7)",resize:"none",fontSize:11,
+                    fontFamily:"'Share Tech Mono',monospace",outline:"none",lineHeight:1.6 }}/>
+              )}
+            </div>
+          ))}
+        </div>
+
+        {/* Submit */}
+        <div style={{ marginTop:24,position:"sticky",bottom:20 }}>
+          <button onClick={handleSubmit} disabled={!allAnswered||loading}
+            style={{ width:"100%",padding:"14px",borderRadius:6,cursor:allAnswered&&!loading?"pointer":"not-allowed",
+              background:allAnswered?`${color}12`:"rgba(255,255,255,.02)",
+              border:`1px solid ${allAnswered?color+"44":"rgba(255,255,255,.06)"}`,
+              color:allAnswered?color:"rgba(255,255,255,.2)",
+              fontFamily:"'Orbitron',monospace",fontSize:10,letterSpacing:3,transition:"all .2s" }}>
+            {loading?"✦ GÉNÉRATION EN COURS...":"✦ GÉNÉRER MON PROGRAMME →"}
+          </button>
+          {!allAnswered && <p style={{ textAlign:"center",marginTop:8,color:"rgba(255,255,255,.15)",fontSize:9,fontFamily:"'Share Tech Mono',monospace" }}>
+            Réponds à toutes les questions à choix pour continuer
+          </p>}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function PlanScreen({ currentTier, onSelect }) {
+  const [selected, setSelected] = useState(currentTier || "gratuit");
+  return (
+    <div style={{ padding:"16px 16px 0" }}>
+      <p style={{ color:"rgba(255,255,255,.18)",fontSize:8,letterSpacing:3,fontFamily:"'Orbitron',monospace",marginBottom:4 }}>PROTOCOLE</p>
+      <h2 style={{ color:"#fff",fontFamily:"'Orbitron',monospace",fontSize:16,letterSpacing:2,marginBottom:4 }}>CHOISIR TON PLAN</h2>
+      <p style={{ color:"rgba(255,255,255,.25)",fontSize:10,fontFamily:"'Share Tech Mono',monospace",marginBottom:18,lineHeight:1.6 }}>
+        Chaque plan débarre la même transformation. La différence : le niveau de personnalisation de l'IA.
+      </p>
+      <div style={{ display:"flex",flexDirection:"column",gap:10,marginBottom:20 }}>
+        {TIERS.map(tier => {
+          const isActive = selected === tier.id;
+          const isCurrent = currentTier === tier.id;
+          return (
+            <div key={tier.id} onClick={() => setSelected(tier.id)}
+              style={{ background:isActive?`rgba(${tier.rgb},.07)`:"rgba(255,255,255,.02)",
+                border:`1px solid ${isActive?tier.color+"44":"rgba(255,255,255,.06)"}`,
+                borderRadius:8,padding:"14px 16px",cursor:"pointer",transition:"all .2s",
+                boxShadow:isActive?`0 0 20px rgba(${tier.rgb},.08)`:""  }}>
+              <div style={{ display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:10 }}>
+                <div style={{ display:"flex",alignItems:"center",gap:8 }}>
+                  <span style={{ color:tier.color,fontSize:18,textShadow:`0 0 10px ${tier.color}` }}>{tier.icon}</span>
+                  <div>
+                    <p style={{ color:tier.color,fontFamily:"'Orbitron',monospace",fontSize:11,letterSpacing:2 }}>{tier.label}</p>
+                    {isCurrent && <p style={{ color:`${tier.color}88`,fontSize:8,fontFamily:"'Orbitron',monospace",letterSpacing:2 }}>PLAN ACTUEL</p>}
+                  </div>
+                </div>
+                <div style={{ textAlign:"right" }}>
+                  <p style={{ color:tier.id==="gratuit"?"#22c55e":tier.color,fontFamily:"'Orbitron',monospace",fontSize:13,fontWeight:700 }}>{tier.price}</p>
+                  {tier.id!=="gratuit" && <p style={{ color:"rgba(255,255,255,.2)",fontSize:8,fontFamily:"'Orbitron',monospace" }}>BIENTÔT</p>}
+                </div>
+              </div>
+              <div style={{ display:"flex",flexDirection:"column",gap:5 }}>
+                {tier.features.map((f,i) => (
+                  <div key={i} style={{ display:"flex",alignItems:"center",gap:7 }}>
+                    <div style={{ width:5,height:5,borderRadius:"50%",background:tier.locked.length===0||i===0?tier.color:`${tier.color}33`,flexShrink:0 }}/>
+                    <span style={{ color:tier.locked.length===0||i===0?"rgba(255,255,255,.45)":"rgba(255,255,255,.18)",fontSize:10,fontFamily:"'Share Tech Mono',monospace" }}>{f}</span>
+                    {tier.id!=="gratuit" && i>0 && <span style={{ marginLeft:"auto",color:`${tier.color}44`,fontSize:8,fontFamily:"'Orbitron',monospace" }}>🔒</span>}
+                  </div>
+                ))}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+      <button onClick={() => onSelect(selected)}
+        style={{ width:"100%",padding:"13px",background:"rgba(0,255,200,.07)",border:"1px solid rgba(0,255,200,.3)",
+          borderRadius:6,color:"#00ffcc",fontFamily:"'Orbitron',monospace",fontSize:10,letterSpacing:3,cursor:"pointer" }}>
+        CONTINUER AVEC {TIERS.find(t=>t.id===selected)?.label} →
+      </button>
+      <p style={{ textAlign:"center",marginTop:10,color:"rgba(255,255,255,.15)",fontSize:9,fontFamily:"'Share Tech Mono',monospace" }}>
+        Les plans payants arrivent bientôt. Pour l'instant tout est gratuit.
+      </p>
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════
+// PROGRAMME SCREEN
+// ═══════════════════════════════════════════════════════════
+function ProgrammeScreen({ state, onKryos }) {
+  const { programmeIA, programmeDate, facetteId, tier } = state;
+  const f = FACETTES.find(fc => fc.id === facetteId);
+  const currentTier = tier || "gratuit";
+  const [activeTab, setActiveTab] = useState("sport");
+
+  const tabs = [
+    { id:"sport",     label:"SPORT",  icon:"⚡" },
+    { id:"lectures",  label:"LIVRES", icon:"📖" },
+    { id:"habitudes", label:"HABITS", icon:"🔥" },
+    { id:"planning",  label:"SEMAINE",icon:"📅" },
+  ];
+
+  const template = PROGRAMME_TEMPLATE[facetteId] || PROGRAMME_TEMPLATE.athlete;
+  const programme = programmeIA || {
+    sport: template.sport,
+    lectures: template.lectures,
+    habitudes: template.habitudes,
+    planning: template.emploi_du_temps,
+    generated: false,
+  };
+
+  const tabContent = {
+    sport:    programme.sport || [],
+    lectures: programme.lectures || [],
+    habitudes:programme.habitudes || [],
+    planning: programme.planning || [],
+  };
+
+  // ── PLAN CARDS ──
+  const planCards = [
+    {
+      id: "gratuit",
+      label: "GEMME BRUTE",
+      price: "Gratuit",
+      mood: "neutral",
+      color: "#4b5563",
+      rgb: "75,85,99",
+      icon: "◇",
+      locked: false,
+      desc: "Programme personnalisé par IA selon ta facette et tes réponses. Mis à jour à chaque nouveau questionnaire.",
+      features: ["Programme sport / lectures / habitudes", "Planning semaine type", "Questionnaire personnalisé", "Adapté à ta facette"],
+    },
+    {
+      id: "faconne",
+      label: "GEMME POLIE",
+      price: "9€/mois",
+      mood: "curious",
+      color: "#00ffcc",
+      rgb: "0,255,204",
+      icon: "◈",
+      locked: true,
+      desc: "Kryos suit ta progression semaine par semaine. Chaque lundi il analyse tes stats et ajuste ton programme.",
+      features: ["Tout le plan Gratuit", "Feedback hebdo → programme adapté", "Boss personnalisé par l'IA", "Kryos analyse tes performances"],
+      tease: "Kryos regarde tes stats depuis une semaine. Il a des choses à te dire.",
+    },
+    {
+      id: "maitrise",
+      label: "GEMME ABSOLUE",
+      price: "Sur devis",
+      mood: "wise",
+      color: "#ffd700",
+      rgb: "255,215,0",
+      icon: "✦",
+      locked: true,
+      desc: "Un programme 100% construit avec toi. Appel direct, objectifs sur mesure, suivi humain + IA.",
+      features: ["Programme entièrement personnalisé", "Appel de cadrage avec le dev", "Suivi humain + IA en parallèle", "Adapté à ta situation exacte"],
+      tease: "Ton cas est unique. Le programme doit l'être aussi.",
+    },
+  ];
+
+  return (
+    <div style={{ padding:"12px 16px 0" }}>
+
+      {/* Programme actif */}
+      <div style={{ marginBottom:18 }}>
+        <div style={{ display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10 }}>
+          <p style={{ color:"rgba(255,255,255,.18)",fontSize:8,letterSpacing:3,fontFamily:"'Orbitron',monospace" }}>
+            TON PROGRAMME — {f?.label.toUpperCase()}
+          </p>
+          {programme.generated
+            ? <span style={{ color:"#00ff6488",fontSize:8,fontFamily:"'Orbitron',monospace" }}>✦ IA · {programmeDate}</span>
+            : <span style={{ color:"rgba(255,255,255,.18)",fontSize:8,fontFamily:"'Orbitron',monospace" }}>BASE</span>
+          }
+        </div>
+
+        {/* Tabs */}
+        <div style={{ display:"flex",gap:5,marginBottom:10,overflowX:"auto" }}>
+          {tabs.map(t => (
+            <button key={t.id} onClick={() => setActiveTab(t.id)}
+              style={{ flexShrink:0,padding:"6px 12px",borderRadius:4,cursor:"pointer",transition:"all .15s",
+                background:activeTab===t.id?`${f?.color}14`:"rgba(255,255,255,.03)",
+                border:`1px solid ${activeTab===t.id?f?.color+"33":"rgba(255,255,255,.06)"}`,
+                color:activeTab===t.id?f?.color:"rgba(255,255,255,.25)",
+                fontSize:8,fontFamily:"'Orbitron',monospace",letterSpacing:1 }}>
+              {t.icon} {t.label}
+            </button>
+          ))}
+        </div>
+
+        <div style={{ background:"rgba(255,255,255,.02)",border:"1px solid rgba(255,255,255,.05)",borderRadius:8,padding:"12px 14px" }}>
+          <div style={{ display:"flex",flexDirection:"column",gap:7 }}>
+            {(tabContent[activeTab]||[]).map((item,i) => (
+              <div key={i} style={{ display:"flex",alignItems:"flex-start",gap:9 }}>
+                <div style={{ width:18,height:18,borderRadius:"50%",background:`${f?.color}15`,border:`1px solid ${f?.color}22`,
+                  display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0,marginTop:1 }}>
+                  <span style={{ color:f?.color,fontSize:8,fontFamily:"'Orbitron',monospace",fontWeight:700 }}>{i+1}</span>
+                </div>
+                <p style={{ color:"rgba(255,255,255,.5)",fontSize:11,fontFamily:"'Share Tech Mono',monospace",lineHeight:1.55,flex:1 }}>{item}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* Séparateur */}
+      <div style={{ display:"flex",alignItems:"center",gap:10,marginBottom:16 }}>
+        <div style={{ flex:1,height:1,background:"rgba(255,255,255,.05)" }}/>
+        <span style={{ color:"rgba(255,255,255,.15)",fontSize:8,fontFamily:"'Orbitron',monospace",letterSpacing:3 }}>PLANS</span>
+        <div style={{ flex:1,height:1,background:"rgba(255,255,255,.05)" }}/>
+      </div>
+
+      {/* 3 plan cards */}
+      <div style={{ display:"flex",flexDirection:"column",gap:10,paddingBottom:16 }}>
+        {planCards.map(plan => {
+          const isActive = currentTier === plan.id;
+          return (
+            <div key={plan.id}
+              style={{ borderRadius:10,padding:"14px 16px",
+                background:isActive?`rgba(${plan.rgb},.07)`:"rgba(255,255,255,.02)",
+                border:`1px solid ${isActive?plan.color+"44":plan.locked?"rgba(255,255,255,.05)":"rgba(255,255,255,.08)"}`,
+                opacity:plan.locked?0.75:1,
+                transition:"all .2s" }}>
+
+              {/* Card header */}
+              <div style={{ display:"flex",alignItems:"center",gap:10,marginBottom:10 }}>
+                <div style={{ flexShrink:0,animation:isActive?"float 4s ease-in-out infinite":"none" }}>
+                  <GemFrog color={plan.locked?"#4b5563":plan.color} size={38} mood={plan.mood}/>
+                </div>
+                <div style={{ flex:1 }}>
+                  <div style={{ display:"flex",alignItems:"center",gap:6,marginBottom:2 }}>
+                    <span style={{ color:plan.locked?"#4b5563":plan.color,fontSize:10,fontFamily:"'Orbitron',monospace",letterSpacing:2,fontWeight:700 }}>{plan.label}</span>
+                    {isActive && <span style={{ background:`${plan.color}22`,border:`1px solid ${plan.color}44`,borderRadius:3,padding:"1px 6px",color:plan.color,fontSize:7,fontFamily:"'Orbitron',monospace" }}>ACTIF</span>}
+                    {plan.locked && <span style={{ color:"rgba(255,255,255,.2)",fontSize:9 }}>🔒</span>}
+                  </div>
+                  <p style={{ color:plan.locked?"#22c55e":plan.id==="maitrise"?"#ffd700":"#22c55e",fontSize:11,fontFamily:"'Orbitron',monospace",fontWeight:700 }}>{plan.price}</p>
+                </div>
+              </div>
+
+              {/* Description */}
+              <p style={{ color:plan.locked?"rgba(255,255,255,.2)":"rgba(255,255,255,.4)",fontSize:10,fontFamily:"'Share Tech Mono',monospace",lineHeight:1.6,marginBottom:10 }}>
+                {plan.locked ? plan.tease : plan.desc}
+              </p>
+
+              {/* Features */}
+              <div style={{ display:"flex",flexDirection:"column",gap:4,marginBottom:plan.locked?10:0 }}>
+                {plan.features.map((feat,i) => (
+                  <div key={i} style={{ display:"flex",alignItems:"center",gap:6 }}>
+                    <div style={{ width:4,height:4,borderRadius:"50%",flexShrink:0,
+                      background:plan.locked&&i>0?"rgba(255,255,255,.1)":plan.locked?"rgba(255,255,255,.2)":plan.color,
+                      opacity:plan.locked&&i>0?0.4:1 }}/>
+                    <span style={{ color:plan.locked&&i>0?"rgba(255,255,255,.15)":"rgba(255,255,255,.35)",fontSize:9,fontFamily:"'Share Tech Mono',monospace" }}>{feat}</span>
+                  </div>
+                ))}
+              </div>
+
+              {/* CTA */}
+              {plan.id==="faconne" && plan.locked && (
+                <div style={{ marginTop:8,padding:"8px 12px",background:"rgba(0,255,204,.05)",border:"1px solid rgba(0,255,204,.12)",borderRadius:6 }}>
+                  <p style={{ color:"rgba(0,255,204,.4)",fontSize:9,fontFamily:"'Orbitron',monospace",letterSpacing:2 }}>BIENTÔT DISPONIBLE</p>
+                </div>
+              )}
+              {plan.id==="maitrise" && plan.locked && (
+                <a href="mailto:contact@gemvitale.com?subject=Programme Gemme Absolue&body=Bonjour, je suis intéressé par le programme personnalisé Gemme Absolue."
+                  style={{ display:"block",marginTop:8,padding:"9px 12px",background:"rgba(255,215,0,.06)",
+                    border:"1px solid rgba(255,215,0,.2)",borderRadius:6,
+                    color:"#ffd700",fontSize:9,fontFamily:"'Orbitron',monospace",letterSpacing:2,
+                    textDecoration:"none",textAlign:"center" }}>
+                  ✦ CONTACTER LE DEV →
+                </a>
+              )}
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+
+// ═══════════════════════════════════════════════════════════
+// KRYOS QUESTIONNAIRE — intro + formulaire
+// ═══════════════════════════════════════════════════════════
+function KryosQuestionnaire({ facetteId, onDone, onSkip }) {
+  const f = FACETTES.find(fc => fc.id === facetteId);
+  const questions = QUESTIONS_PROGRAMME[facetteId] || QUESTIONS_PROGRAMME.athlete;
+  const intro = KRYOS_PROGRAMME_INTRO[facetteId] || KRYOS_PROGRAMME_INTRO.athlete;
+
+  const [phase, setPhase] = useState("intro"); // intro | form
+  const [introIdx, setIntroIdx] = useState(0);
+  const [introDone, setIntroDone] = useState(false);
+  const [introOut, setIntroOut] = useState("");
+  const [answers, setAnswers] = useState({});
+  const [loading, setLoading] = useState(false);
+  const timerRef = useRef(null);
+
+  const introLine = intro.lines[introIdx];
+  const rgb = f?.rgb || "0,255,204";
+  const color = f?.color || "#00ffcc";
+
+  // Typewriter effect
+  useEffect(() => {
+    if (phase !== "intro") return;
+    setIntroOut(""); setIntroDone(false);
+    let i = 0;
+    clearInterval(timerRef.current);
+    timerRef.current = setInterval(() => {
+      i++; setIntroOut(introLine.slice(0, i));
+      if (i >= introLine.length) { clearInterval(timerRef.current); setIntroDone(true); }
+    }, 22);
+    return () => clearInterval(timerRef.current);
+  }, [introIdx, phase]);
+
+  const advanceIntro = () => {
+    if (!introDone) { clearInterval(timerRef.current); setIntroOut(introLine); setIntroDone(true); return; }
+    if (introIdx < intro.lines.length - 1) setIntroIdx(i => i + 1);
+    else setPhase("form");
+  };
+
+  const allAnswered = questions.filter(q => q.type === "select").every(q => answers[q.id]);
+
+  const handleSubmit = async () => {
+    setLoading(true);
+    onDone(answers);
+  };
+
+  // ── INTRO PHASE (style KryosModal) ──
+  if (phase === "intro") return (
+    <div onClick={advanceIntro} style={{ position:"fixed",inset:0,zIndex:2000,
+      display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"flex-end",
+      background:"rgba(2,2,12,.96)", animation:"fadeInFast .22s ease" }}>
+      <div style={{ position:"absolute",top:36,left:0,right:0,textAlign:"center" }}>
+        <p style={{ color:`rgba(${rgb},.4)`,fontSize:9,fontFamily:"'Orbitron',monospace",letterSpacing:5 }}>{intro.title}</p>
+      </div>
+      <button onClick={e=>{e.stopPropagation();onSkip();}} style={{ position:"absolute",top:36,right:20,background:"none",border:"none",color:"rgba(255,255,255,.2)",fontSize:9,fontFamily:"'Orbitron',monospace",cursor:"pointer",letterSpacing:2 }}>PASSER</button>
+      <div style={{ marginBottom:-8,zIndex:1,animation:"float 4s ease-in-out infinite" }}>
+        <GemFrog color={color} size={152} mood={intro.mood||"wise"} />
+      </div>
+      <div style={{ width:"100%",maxWidth:520,background:`linear-gradient(180deg,rgba(6,6,22,.98) 0%,rgba(4,4,16,1) 100%)`,
+        borderTop:`1px solid rgba(${rgb},.18)`,padding:"26px 22px 44px",position:"relative" }}>
+        {[[true,true],[true,false],[false,true],[false,false]].map(([t,l],i)=>(
+          <div key={i} style={{ position:"absolute",top:t?9:"auto",bottom:t?"auto":9,left:l?9:"auto",right:l?"auto":9,width:12,height:12,
+            borderTop:t?`1px solid rgba(${rgb},.32)`:"none",borderBottom:t?"none":`1px solid rgba(${rgb},.32)`,
+            borderLeft:l?`1px solid rgba(${rgb},.32)`:"none",borderRight:l?"none":`1px solid rgba(${rgb},.32)` }}/>
+        ))}
+        <div style={{ display:"flex",alignItems:"center",gap:8,marginBottom:14 }}>
+          <div style={{ width:5,height:5,borderRadius:"50%",background:color,boxShadow:`0 0 7px ${color}`,animation:"pulse 2s infinite" }}/>
+          <span style={{ color,fontSize:10,fontFamily:"'Orbitron',monospace",letterSpacing:3 }}>KRYOS</span>
+          <span style={{ color:`rgba(${rgb},.25)`,fontSize:9,fontFamily:"'Orbitron',monospace" }}>— PROGRAMME PERSONNALISÉ</span>
+        </div>
+        <p style={{ color:"rgba(255,255,255,.82)",fontSize:13.5,lineHeight:1.8,minHeight:60,fontFamily:"'Share Tech Mono',monospace" }}>
+          {introOut}{!introDone&&<span style={{color,animation:"blink .65s infinite"}}>█</span>}
+        </p>
+        <div style={{ display:"flex",gap:4,marginTop:18,justifyContent:"center" }}>
+          {intro.lines.map((_,i)=>(
+            <div key={i} style={{ height:2,borderRadius:1,width:i===introIdx?18:5,
+              background:i<=introIdx?color:`rgba(${rgb},.16)`,transition:"all .3s" }}/>
+          ))}
+        </div>
+        {introDone&&<p style={{ textAlign:"center",marginTop:12,color:`rgba(${rgb},.32)`,fontSize:8,fontFamily:"'Orbitron',monospace",letterSpacing:3,animation:"pulse 1.5s infinite" }}>
+          {introIdx<intro.lines.length-1?"[ CONTINUER ]":"[ RÉPONDRE AUX QUESTIONS ]"}
+        </p>}
+      </div>
+    </div>
+  );
+
+  // ── FORM PHASE ──
+  return (
+    <div style={{ position:"fixed",inset:0,zIndex:2000,background:"rgba(2,2,12,.97)",overflowY:"auto",animation:"fadeInFast .22s ease" }}>
+      <div style={{ maxWidth:520,margin:"0 auto",padding:"24px 18px 80px" }}>
+        {/* Header */}
+        <div style={{ display:"flex",alignItems:"center",gap:10,marginBottom:24 }}>
+          <GemFrog color={color} size={32} mood="curious"/>
+          <div>
+            <p style={{ color,fontFamily:"'Orbitron',monospace",fontSize:11,letterSpacing:3 }}>KRYOS — QUESTIONS</p>
+            <p style={{ color:"rgba(255,255,255,.2)",fontSize:9,fontFamily:"'Share Tech Mono',monospace" }}>Réponds honnêtement pour un programme adapté</p>
+          </div>
+          <button onClick={onSkip} style={{ marginLeft:"auto",background:"none",border:"none",color:"rgba(255,255,255,.2)",fontSize:9,fontFamily:"'Orbitron',monospace",cursor:"pointer",letterSpacing:1 }}>PASSER</button>
+        </div>
+
+        {/* Questions */}
+        <div style={{ display:"flex",flexDirection:"column",gap:14 }}>
+          {questions.map((q, i) => (
+            <div key={q.id} style={{ animation:`fadeIn .3s ease ${i*0.05}s both` }}>
+              <div style={{ display:"flex",alignItems:"center",gap:8,marginBottom:8 }}>
+                <div style={{ width:18,height:18,borderRadius:"50%",background:`${color}18`,border:`1px solid ${color}33`,
+                  display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0 }}>
+                  <span style={{ color,fontSize:8,fontFamily:"'Orbitron',monospace",fontWeight:700 }}>{i+1}</span>
+                </div>
+                <p style={{ color:"rgba(255,255,255,.6)",fontSize:11,fontFamily:"'Orbitron',monospace",letterSpacing:1 }}>{q.label}</p>
+              </div>
+
+              {q.type === "select" ? (
+                <div style={{ display:"flex",flexDirection:"column",gap:5 }}>
+                  {q.options.map(opt => (
+                    <button key={opt} onClick={() => setAnswers(a=>({...a,[q.id]:opt}))}
+                      style={{ padding:"9px 13px",textAlign:"left",borderRadius:4,cursor:"pointer",transition:"all .15s",
+                        background:answers[q.id]===opt?`${color}12`:"rgba(255,255,255,.02)",
+                        border:`1px solid ${answers[q.id]===opt?color+"44":"rgba(255,255,255,.06)"}`,
+                        color:answers[q.id]===opt?color:"rgba(255,255,255,.35)",
+                        fontSize:11,fontFamily:"'Share Tech Mono',monospace" }}>
+                      <span style={{ marginRight:8,opacity:answers[q.id]===opt?1:.3 }}>{answers[q.id]===opt?"◆":"◇"}</span>
+                      {opt}
+                    </button>
+                  ))}
+                </div>
+              ) : (
+                <textarea value={answers[q.id]||""} onChange={e=>setAnswers(a=>({...a,[q.id]:e.target.value}))}
+                  placeholder={q.placeholder} rows={2}
+                  style={{ width:"100%",padding:"10px 12px",background:"rgba(255,255,255,.03)",
+                    border:`1px solid ${answers[q.id]?""+color+"33":"rgba(255,255,255,.08)"}`,
+                    borderRadius:4,color:"rgba(255,255,255,.7)",resize:"none",fontSize:11,
+                    fontFamily:"'Share Tech Mono',monospace",outline:"none",lineHeight:1.6 }}/>
+              )}
+            </div>
+          ))}
+        </div>
+
+        {/* Submit */}
+        <div style={{ marginTop:24,position:"sticky",bottom:20 }}>
+          <button onClick={handleSubmit} disabled={!allAnswered||loading}
+            style={{ width:"100%",padding:"14px",borderRadius:6,cursor:allAnswered&&!loading?"pointer":"not-allowed",
+              background:allAnswered?`${color}12`:"rgba(255,255,255,.02)",
+              border:`1px solid ${allAnswered?color+"44":"rgba(255,255,255,.06)"}`,
+              color:allAnswered?color:"rgba(255,255,255,.2)",
+              fontFamily:"'Orbitron',monospace",fontSize:10,letterSpacing:3,transition:"all .2s" }}>
+            {loading?"✦ GÉNÉRATION EN COURS...":"✦ GÉNÉRER MON PROGRAMME →"}
+          </button>
+          {!allAnswered && <p style={{ textAlign:"center",marginTop:8,color:"rgba(255,255,255,.15)",fontSize:9,fontFamily:"'Share Tech Mono',monospace" }}>
+            Réponds à toutes les questions à choix pour continuer
+          </p>}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function PlanScreen({ currentTier, onSelect }) {
   const [selected, setSelected] = useState(currentTier || "gratuit");
   return (
@@ -1143,125 +1708,440 @@ function PlanScreen({ currentTier, onSelect }) {
 // ═══════════════════════════════════════════════════════════
 // PROGRAMME SCREEN — affiché dans l'onglet QUÊTES ou dédié
 // ═══════════════════════════════════════════════════════════
-function ProgrammeScreen({ state, onGenerate, onKryos }) {
-  const { programmeIA, programmeDate, facetteId, tier } = state;
+// ═══════════════════════════════════════════════════════════
+// KRYOS QUESTIONNAIRE — intro + formulaire
+// ═══════════════════════════════════════════════════════════
+function KryosQuestionnaire({ facetteId, onDone, onSkip }) {
   const f = FACETTES.find(fc => fc.id === facetteId);
-  const tierInfo = TIERS.find(t => t.id === (tier || "gratuit"));
+  const questions = QUESTIONS_PROGRAMME[facetteId] || QUESTIONS_PROGRAMME.athlete;
+  const intro = KRYOS_PROGRAMME_INTRO[facetteId] || KRYOS_PROGRAMME_INTRO.athlete;
+
+  const [phase, setPhase] = useState("intro"); // intro | form
+  const [introIdx, setIntroIdx] = useState(0);
+  const [introDone, setIntroDone] = useState(false);
+  const [introOut, setIntroOut] = useState("");
+  const [answers, setAnswers] = useState({});
   const [loading, setLoading] = useState(false);
-  const [tab, setTab] = useState("sport");
+  const timerRef = useRef(null);
 
-  const tabs = [
-    { id:"sport",      label:"SPORT",    icon:"⚡" },
-    { id:"lectures",   label:"LIVRES",   icon:"📖" },
-    { id:"habitudes",  label:"HABITS",   icon:"🔥" },
-    { id:"planning",   label:"SEMAINE",  icon:"📅" },
-  ];
+  const introLine = intro.lines[introIdx];
+  const rgb = f?.rgb || "0,255,204";
+  const color = f?.color || "#00ffcc";
 
-  const handleGenerate = async () => {
+  // Typewriter effect
+  useEffect(() => {
+    if (phase !== "intro") return;
+    setIntroOut(""); setIntroDone(false);
+    let i = 0;
+    clearInterval(timerRef.current);
+    timerRef.current = setInterval(() => {
+      i++; setIntroOut(introLine.slice(0, i));
+      if (i >= introLine.length) { clearInterval(timerRef.current); setIntroDone(true); }
+    }, 22);
+    return () => clearInterval(timerRef.current);
+  }, [introIdx, phase]);
+
+  const advanceIntro = () => {
+    if (!introDone) { clearInterval(timerRef.current); setIntroOut(introLine); setIntroDone(true); return; }
+    if (introIdx < intro.lines.length - 1) setIntroIdx(i => i + 1);
+    else setPhase("form");
+  };
+
+  const allAnswered = questions.filter(q => q.type === "select").every(q => answers[q.id]);
+
+  const handleSubmit = async () => {
     setLoading(true);
-    await onGenerate();
-    setLoading(false);
+    onDone(answers);
   };
 
-  // Fallback to template if no IA programme
-  const template = PROGRAMME_TEMPLATE[facetteId] || PROGRAMME_TEMPLATE.athlete;
-  const programme = programmeIA || {
-    sport: template.sport,
-    lectures: template.lectures,
-    habitudes: template.habitudes,
-    planning: template.emploi_du_temps,
-    generated: false,
-  };
-
-  const tabContent = {
-    sport:     programme.sport || [],
-    lectures:  programme.lectures || [],
-    habitudes: programme.habitudes || [],
-    planning:  programme.planning || [],
-  };
-
-  return (
-    <div style={{ padding:"12px 16px 0" }}>
-      {/* Header */}
-      <div style={{ display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14 }}>
-        <div>
-          <p style={{ color:"rgba(255,255,255,.18)",fontSize:8,letterSpacing:3,fontFamily:"'Orbitron',monospace",marginBottom:2 }}>PROGRAMME</p>
-          <p style={{ color:f?.color,fontFamily:"'Orbitron',monospace",fontSize:13,letterSpacing:2 }}>{f?.icon} {f?.label.toUpperCase()}</p>
-        </div>
-        <div style={{ textAlign:"right" }}>
-          <div style={{ display:"inline-flex",alignItems:"center",gap:5,padding:"4px 10px",
-            background:`rgba(${tierInfo?.rgb},.1)`,border:`1px solid ${tierInfo?.color}33`,borderRadius:4 }}>
-            <span style={{ color:tierInfo?.color,fontSize:9,fontFamily:"'Orbitron',monospace" }}>{tierInfo?.icon} {tierInfo?.label}</span>
-          </div>
-        </div>
+  // ── INTRO PHASE (style KryosModal) ──
+  if (phase === "intro") return (
+    <div onClick={advanceIntro} style={{ position:"fixed",inset:0,zIndex:2000,
+      display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"flex-end",
+      background:"rgba(2,2,12,.96)", animation:"fadeInFast .22s ease" }}>
+      <div style={{ position:"absolute",top:36,left:0,right:0,textAlign:"center" }}>
+        <p style={{ color:`rgba(${rgb},.4)`,fontSize:9,fontFamily:"'Orbitron',monospace",letterSpacing:5 }}>{intro.title}</p>
       </div>
-
-      {/* IA badge */}
-      {programme.generated ? (
-        <div style={{ background:"rgba(0,255,100,.05)",border:"1px solid rgba(0,255,100,.15)",borderRadius:6,padding:"8px 12px",marginBottom:14,display:"flex",alignItems:"center",gap:8 }}>
-          <span style={{ color:"#00ff64",fontSize:9,fontFamily:"'Orbitron',monospace" }}>✦ GÉNÉRÉ PAR IA</span>
-          <span style={{ color:"rgba(255,255,255,.2)",fontSize:8,fontFamily:"'Share Tech Mono',monospace",marginLeft:"auto" }}>{programmeDate}</span>
-          <button onClick={handleGenerate} disabled={loading}
-            style={{ background:"none",border:"1px solid rgba(0,255,100,.2)",borderRadius:3,color:"rgba(0,255,100,.5)",fontSize:8,cursor:"pointer",padding:"3px 7px",fontFamily:"'Orbitron',monospace" }}>
-            {loading?"...":"↺"}
-          </button>
-        </div>
-      ) : (
-        <div style={{ background:"rgba(255,255,255,.03)",border:"1px solid rgba(255,255,255,.08)",borderRadius:6,padding:"10px 12px",marginBottom:14 }}>
-          <p style={{ color:"rgba(255,255,255,.3)",fontSize:10,fontFamily:"'Share Tech Mono',monospace",marginBottom:8,lineHeight:1.5 }}>
-            Programme de base actif. Génère ta version personnalisée par IA.
-          </p>
-          <button onClick={handleGenerate} disabled={loading}
-            style={{ padding:"8px 14px",background:"rgba(0,255,200,.07)",border:"1px solid rgba(0,255,200,.25)",borderRadius:4,
-              color:loading?"rgba(255,255,255,.3)":"#00ffcc",fontFamily:"'Orbitron',monospace",fontSize:9,letterSpacing:2,cursor:loading?"wait":"pointer",transition:"all .2s" }}>
-            {loading ? "✦ GÉNÉRATION EN COURS..." : "✦ GÉNÉRER MON PROGRAMME IA →"}
-          </button>
-        </div>
-      )}
-
-      {/* Tabs */}
-      <div style={{ display:"flex",gap:5,marginBottom:14,overflowX:"auto" }}>
-        {tabs.map(t => (
-          <button key={t.id} onClick={() => setTab(t.id)}
-            style={{ flexShrink:0,padding:"6px 12px",borderRadius:4,
-              background:tab===t.id?`${f?.color}14`:"rgba(255,255,255,.03)",
-              border:`1px solid ${tab===t.id?f?.color+"33":"rgba(255,255,255,.06)"}`,
-              color:tab===t.id?f?.color:"rgba(255,255,255,.25)",
-              fontSize:8,fontFamily:"'Orbitron',monospace",letterSpacing:1,cursor:"pointer" }}>
-            {t.icon} {t.label}
-          </button>
+      <button onClick={e=>{e.stopPropagation();onSkip();}} style={{ position:"absolute",top:36,right:20,background:"none",border:"none",color:"rgba(255,255,255,.2)",fontSize:9,fontFamily:"'Orbitron',monospace",cursor:"pointer",letterSpacing:2 }}>PASSER</button>
+      <div style={{ marginBottom:-8,zIndex:1,animation:"float 4s ease-in-out infinite" }}>
+        <GemFrog color={color} size={152} mood={intro.mood||"wise"} />
+      </div>
+      <div style={{ width:"100%",maxWidth:520,background:`linear-gradient(180deg,rgba(6,6,22,.98) 0%,rgba(4,4,16,1) 100%)`,
+        borderTop:`1px solid rgba(${rgb},.18)`,padding:"26px 22px 44px",position:"relative" }}>
+        {[[true,true],[true,false],[false,true],[false,false]].map(([t,l],i)=>(
+          <div key={i} style={{ position:"absolute",top:t?9:"auto",bottom:t?"auto":9,left:l?9:"auto",right:l?"auto":9,width:12,height:12,
+            borderTop:t?`1px solid rgba(${rgb},.32)`:"none",borderBottom:t?"none":`1px solid rgba(${rgb},.32)`,
+            borderLeft:l?`1px solid rgba(${rgb},.32)`:"none",borderRight:l?"none":`1px solid rgba(${rgb},.32)` }}/>
         ))}
+        <div style={{ display:"flex",alignItems:"center",gap:8,marginBottom:14 }}>
+          <div style={{ width:5,height:5,borderRadius:"50%",background:color,boxShadow:`0 0 7px ${color}`,animation:"pulse 2s infinite" }}/>
+          <span style={{ color,fontSize:10,fontFamily:"'Orbitron',monospace",letterSpacing:3 }}>KRYOS</span>
+          <span style={{ color:`rgba(${rgb},.25)`,fontSize:9,fontFamily:"'Orbitron',monospace" }}>— PROGRAMME PERSONNALISÉ</span>
+        </div>
+        <p style={{ color:"rgba(255,255,255,.82)",fontSize:13.5,lineHeight:1.8,minHeight:60,fontFamily:"'Share Tech Mono',monospace" }}>
+          {introOut}{!introDone&&<span style={{color,animation:"blink .65s infinite"}}>█</span>}
+        </p>
+        <div style={{ display:"flex",gap:4,marginTop:18,justifyContent:"center" }}>
+          {intro.lines.map((_,i)=>(
+            <div key={i} style={{ height:2,borderRadius:1,width:i===introIdx?18:5,
+              background:i<=introIdx?color:`rgba(${rgb},.16)`,transition:"all .3s" }}/>
+          ))}
+        </div>
+        {introDone&&<p style={{ textAlign:"center",marginTop:12,color:`rgba(${rgb},.32)`,fontSize:8,fontFamily:"'Orbitron',monospace",letterSpacing:3,animation:"pulse 1.5s infinite" }}>
+          {introIdx<intro.lines.length-1?"[ CONTINUER ]":"[ RÉPONDRE AUX QUESTIONS ]"}
+        </p>}
       </div>
+    </div>
+  );
 
-      {/* Content */}
-      <div style={{ background:"rgba(255,255,255,.02)",border:"1px solid rgba(255,255,255,.05)",borderRadius:8,padding:"12px 14px",marginBottom:14 }}>
-        <div style={{ display:"flex",flexDirection:"column",gap:8 }}>
-          {(tabContent[tab] || []).map((item, i) => (
-            <div key={i} style={{ display:"flex",alignItems:"flex-start",gap:10,padding:"8px 10px",
-              background:"rgba(255,255,255,.02)",borderRadius:4,border:"1px solid rgba(255,255,255,.04)" }}>
-              <div style={{ width:20,height:20,borderRadius:"50%",background:`${f?.color}15`,border:`1px solid ${f?.color}33`,
-                display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0,marginTop:1 }}>
-                <span style={{ color:f?.color,fontSize:9,fontFamily:"'Orbitron',monospace",fontWeight:700 }}>{i+1}</span>
+  // ── FORM PHASE ──
+  return (
+    <div style={{ position:"fixed",inset:0,zIndex:2000,background:"rgba(2,2,12,.97)",overflowY:"auto",animation:"fadeInFast .22s ease" }}>
+      <div style={{ maxWidth:520,margin:"0 auto",padding:"24px 18px 80px" }}>
+        {/* Header */}
+        <div style={{ display:"flex",alignItems:"center",gap:10,marginBottom:24 }}>
+          <GemFrog color={color} size={32} mood="curious"/>
+          <div>
+            <p style={{ color,fontFamily:"'Orbitron',monospace",fontSize:11,letterSpacing:3 }}>KRYOS — QUESTIONS</p>
+            <p style={{ color:"rgba(255,255,255,.2)",fontSize:9,fontFamily:"'Share Tech Mono',monospace" }}>Réponds honnêtement pour un programme adapté</p>
+          </div>
+          <button onClick={onSkip} style={{ marginLeft:"auto",background:"none",border:"none",color:"rgba(255,255,255,.2)",fontSize:9,fontFamily:"'Orbitron',monospace",cursor:"pointer",letterSpacing:1 }}>PASSER</button>
+        </div>
+
+        {/* Questions */}
+        <div style={{ display:"flex",flexDirection:"column",gap:14 }}>
+          {questions.map((q, i) => (
+            <div key={q.id} style={{ animation:`fadeIn .3s ease ${i*0.05}s both` }}>
+              <div style={{ display:"flex",alignItems:"center",gap:8,marginBottom:8 }}>
+                <div style={{ width:18,height:18,borderRadius:"50%",background:`${color}18`,border:`1px solid ${color}33`,
+                  display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0 }}>
+                  <span style={{ color,fontSize:8,fontFamily:"'Orbitron',monospace",fontWeight:700 }}>{i+1}</span>
+                </div>
+                <p style={{ color:"rgba(255,255,255,.6)",fontSize:11,fontFamily:"'Orbitron',monospace",letterSpacing:1 }}>{q.label}</p>
               </div>
-              <p style={{ color:"rgba(255,255,255,.55)",fontSize:11,fontFamily:"'Share Tech Mono',monospace",lineHeight:1.55,flex:1 }}>{item}</p>
+
+              {q.type === "select" ? (
+                <div style={{ display:"flex",flexDirection:"column",gap:5 }}>
+                  {q.options.map(opt => (
+                    <button key={opt} onClick={() => setAnswers(a=>({...a,[q.id]:opt}))}
+                      style={{ padding:"9px 13px",textAlign:"left",borderRadius:4,cursor:"pointer",transition:"all .15s",
+                        background:answers[q.id]===opt?`${color}12`:"rgba(255,255,255,.02)",
+                        border:`1px solid ${answers[q.id]===opt?color+"44":"rgba(255,255,255,.06)"}`,
+                        color:answers[q.id]===opt?color:"rgba(255,255,255,.35)",
+                        fontSize:11,fontFamily:"'Share Tech Mono',monospace" }}>
+                      <span style={{ marginRight:8,opacity:answers[q.id]===opt?1:.3 }}>{answers[q.id]===opt?"◆":"◇"}</span>
+                      {opt}
+                    </button>
+                  ))}
+                </div>
+              ) : (
+                <textarea value={answers[q.id]||""} onChange={e=>setAnswers(a=>({...a,[q.id]:e.target.value}))}
+                  placeholder={q.placeholder} rows={2}
+                  style={{ width:"100%",padding:"10px 12px",background:"rgba(255,255,255,.03)",
+                    border:`1px solid ${answers[q.id]?""+color+"33":"rgba(255,255,255,.08)"}`,
+                    borderRadius:4,color:"rgba(255,255,255,.7)",resize:"none",fontSize:11,
+                    fontFamily:"'Share Tech Mono',monospace",outline:"none",lineHeight:1.6 }}/>
+              )}
             </div>
           ))}
         </div>
-      </div>
 
-      {/* Locked features teaser */}
-      {(tier === "gratuit" || !tier) && (
-        <div style={{ background:"rgba(255,215,0,.03)",border:"1px solid rgba(255,215,0,.1)",borderRadius:8,padding:"11px 14px" }}>
-          <p style={{ color:"#ffd70088",fontSize:8,letterSpacing:3,fontFamily:"'Orbitron',monospace",marginBottom:7 }}>🔒 AVEC GEMME POLIE</p>
-          <p style={{ color:"rgba(255,255,255,.25)",fontSize:10,fontFamily:"'Share Tech Mono',monospace",lineHeight:1.6 }}>
-            Programme mis à jour chaque semaine selon ta progression. Boss personnalisé. Kryos analyse tes stats.
-          </p>
+        {/* Submit */}
+        <div style={{ marginTop:24,position:"sticky",bottom:20 }}>
+          <button onClick={handleSubmit} disabled={!allAnswered||loading}
+            style={{ width:"100%",padding:"14px",borderRadius:6,cursor:allAnswered&&!loading?"pointer":"not-allowed",
+              background:allAnswered?`${color}12`:"rgba(255,255,255,.02)",
+              border:`1px solid ${allAnswered?color+"44":"rgba(255,255,255,.06)"}`,
+              color:allAnswered?color:"rgba(255,255,255,.2)",
+              fontFamily:"'Orbitron',monospace",fontSize:10,letterSpacing:3,transition:"all .2s" }}>
+            {loading?"✦ GÉNÉRATION EN COURS...":"✦ GÉNÉRER MON PROGRAMME →"}
+          </button>
+          {!allAnswered && <p style={{ textAlign:"center",marginTop:8,color:"rgba(255,255,255,.15)",fontSize:9,fontFamily:"'Share Tech Mono',monospace" }}>
+            Réponds à toutes les questions à choix pour continuer
+          </p>}
         </div>
-      )}
+      </div>
     </div>
   );
 }
 
+function PlanScreen({ currentTier, onSelect }) {
+  const [selected, setSelected] = useState(currentTier || "gratuit");
+  return (
+    <div style={{ padding:"16px 16px 0" }}>
+      <p style={{ color:"rgba(255,255,255,.18)",fontSize:8,letterSpacing:3,fontFamily:"'Orbitron',monospace",marginBottom:4 }}>PROTOCOLE</p>
+      <h2 style={{ color:"#fff",fontFamily:"'Orbitron',monospace",fontSize:16,letterSpacing:2,marginBottom:4 }}>CHOISIR TON PLAN</h2>
+      <p style={{ color:"rgba(255,255,255,.25)",fontSize:10,fontFamily:"'Share Tech Mono',monospace",marginBottom:18,lineHeight:1.6 }}>
+        Chaque plan débarre la même transformation. La différence : le niveau de personnalisation de l'IA.
+      </p>
+      <div style={{ display:"flex",flexDirection:"column",gap:10,marginBottom:20 }}>
+        {TIERS.map(tier => {
+          const isActive = selected === tier.id;
+          const isCurrent = currentTier === tier.id;
+          return (
+            <div key={tier.id} onClick={() => setSelected(tier.id)}
+              style={{ background:isActive?`rgba(${tier.rgb},.07)`:"rgba(255,255,255,.02)",
+                border:`1px solid ${isActive?tier.color+"44":"rgba(255,255,255,.06)"}`,
+                borderRadius:8,padding:"14px 16px",cursor:"pointer",transition:"all .2s",
+                boxShadow:isActive?`0 0 20px rgba(${tier.rgb},.08)`:""  }}>
+              <div style={{ display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:10 }}>
+                <div style={{ display:"flex",alignItems:"center",gap:8 }}>
+                  <span style={{ color:tier.color,fontSize:18,textShadow:`0 0 10px ${tier.color}` }}>{tier.icon}</span>
+                  <div>
+                    <p style={{ color:tier.color,fontFamily:"'Orbitron',monospace",fontSize:11,letterSpacing:2 }}>{tier.label}</p>
+                    {isCurrent && <p style={{ color:`${tier.color}88`,fontSize:8,fontFamily:"'Orbitron',monospace",letterSpacing:2 }}>PLAN ACTUEL</p>}
+                  </div>
+                </div>
+                <div style={{ textAlign:"right" }}>
+                  <p style={{ color:tier.id==="gratuit"?"#22c55e":tier.color,fontFamily:"'Orbitron',monospace",fontSize:13,fontWeight:700 }}>{tier.price}</p>
+                  {tier.id!=="gratuit" && <p style={{ color:"rgba(255,255,255,.2)",fontSize:8,fontFamily:"'Orbitron',monospace" }}>BIENTÔT</p>}
+                </div>
+              </div>
+              <div style={{ display:"flex",flexDirection:"column",gap:5 }}>
+                {tier.features.map((f,i) => (
+                  <div key={i} style={{ display:"flex",alignItems:"center",gap:7 }}>
+                    <div style={{ width:5,height:5,borderRadius:"50%",background:tier.locked.length===0||i===0?tier.color:`${tier.color}33`,flexShrink:0 }}/>
+                    <span style={{ color:tier.locked.length===0||i===0?"rgba(255,255,255,.45)":"rgba(255,255,255,.18)",fontSize:10,fontFamily:"'Share Tech Mono',monospace" }}>{f}</span>
+                    {tier.id!=="gratuit" && i>0 && <span style={{ marginLeft:"auto",color:`${tier.color}44`,fontSize:8,fontFamily:"'Orbitron',monospace" }}>🔒</span>}
+                  </div>
+                ))}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+      <button onClick={() => onSelect(selected)}
+        style={{ width:"100%",padding:"13px",background:"rgba(0,255,200,.07)",border:"1px solid rgba(0,255,200,.3)",
+          borderRadius:6,color:"#00ffcc",fontFamily:"'Orbitron',monospace",fontSize:10,letterSpacing:3,cursor:"pointer" }}>
+        CONTINUER AVEC {TIERS.find(t=>t.id===selected)?.label} →
+      </button>
+      <p style={{ textAlign:"center",marginTop:10,color:"rgba(255,255,255,.15)",fontSize:9,fontFamily:"'Share Tech Mono',monospace" }}>
+        Les plans payants arrivent bientôt. Pour l'instant tout est gratuit.
+      </p>
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════
+// PROGRAMME SCREEN
+// ═══════════════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════════════
+// KRYOS QUESTIONNAIRE — intro + formulaire
+// ═══════════════════════════════════════════════════════════
+function KryosQuestionnaire({ facetteId, onDone, onSkip }) {
+  const f = FACETTES.find(fc => fc.id === facetteId);
+  const questions = QUESTIONS_PROGRAMME[facetteId] || QUESTIONS_PROGRAMME.athlete;
+  const intro = KRYOS_PROGRAMME_INTRO[facetteId] || KRYOS_PROGRAMME_INTRO.athlete;
+
+  const [phase, setPhase] = useState("intro"); // intro | form
+  const [introIdx, setIntroIdx] = useState(0);
+  const [introDone, setIntroDone] = useState(false);
+  const [introOut, setIntroOut] = useState("");
+  const [answers, setAnswers] = useState({});
+  const [loading, setLoading] = useState(false);
+  const timerRef = useRef(null);
+
+  const introLine = intro.lines[introIdx];
+  const rgb = f?.rgb || "0,255,204";
+  const color = f?.color || "#00ffcc";
+
+  // Typewriter effect
+  useEffect(() => {
+    if (phase !== "intro") return;
+    setIntroOut(""); setIntroDone(false);
+    let i = 0;
+    clearInterval(timerRef.current);
+    timerRef.current = setInterval(() => {
+      i++; setIntroOut(introLine.slice(0, i));
+      if (i >= introLine.length) { clearInterval(timerRef.current); setIntroDone(true); }
+    }, 22);
+    return () => clearInterval(timerRef.current);
+  }, [introIdx, phase]);
+
+  const advanceIntro = () => {
+    if (!introDone) { clearInterval(timerRef.current); setIntroOut(introLine); setIntroDone(true); return; }
+    if (introIdx < intro.lines.length - 1) setIntroIdx(i => i + 1);
+    else setPhase("form");
+  };
+
+  const allAnswered = questions.filter(q => q.type === "select").every(q => answers[q.id]);
+
+  const handleSubmit = async () => {
+    setLoading(true);
+    onDone(answers);
+  };
+
+  // ── INTRO PHASE (style KryosModal) ──
+  if (phase === "intro") return (
+    <div onClick={advanceIntro} style={{ position:"fixed",inset:0,zIndex:2000,
+      display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"flex-end",
+      background:"rgba(2,2,12,.96)", animation:"fadeInFast .22s ease" }}>
+      <div style={{ position:"absolute",top:36,left:0,right:0,textAlign:"center" }}>
+        <p style={{ color:`rgba(${rgb},.4)`,fontSize:9,fontFamily:"'Orbitron',monospace",letterSpacing:5 }}>{intro.title}</p>
+      </div>
+      <button onClick={e=>{e.stopPropagation();onSkip();}} style={{ position:"absolute",top:36,right:20,background:"none",border:"none",color:"rgba(255,255,255,.2)",fontSize:9,fontFamily:"'Orbitron',monospace",cursor:"pointer",letterSpacing:2 }}>PASSER</button>
+      <div style={{ marginBottom:-8,zIndex:1,animation:"float 4s ease-in-out infinite" }}>
+        <GemFrog color={color} size={152} mood={intro.mood||"wise"} />
+      </div>
+      <div style={{ width:"100%",maxWidth:520,background:`linear-gradient(180deg,rgba(6,6,22,.98) 0%,rgba(4,4,16,1) 100%)`,
+        borderTop:`1px solid rgba(${rgb},.18)`,padding:"26px 22px 44px",position:"relative" }}>
+        {[[true,true],[true,false],[false,true],[false,false]].map(([t,l],i)=>(
+          <div key={i} style={{ position:"absolute",top:t?9:"auto",bottom:t?"auto":9,left:l?9:"auto",right:l?"auto":9,width:12,height:12,
+            borderTop:t?`1px solid rgba(${rgb},.32)`:"none",borderBottom:t?"none":`1px solid rgba(${rgb},.32)`,
+            borderLeft:l?`1px solid rgba(${rgb},.32)`:"none",borderRight:l?"none":`1px solid rgba(${rgb},.32)` }}/>
+        ))}
+        <div style={{ display:"flex",alignItems:"center",gap:8,marginBottom:14 }}>
+          <div style={{ width:5,height:5,borderRadius:"50%",background:color,boxShadow:`0 0 7px ${color}`,animation:"pulse 2s infinite" }}/>
+          <span style={{ color,fontSize:10,fontFamily:"'Orbitron',monospace",letterSpacing:3 }}>KRYOS</span>
+          <span style={{ color:`rgba(${rgb},.25)`,fontSize:9,fontFamily:"'Orbitron',monospace" }}>— PROGRAMME PERSONNALISÉ</span>
+        </div>
+        <p style={{ color:"rgba(255,255,255,.82)",fontSize:13.5,lineHeight:1.8,minHeight:60,fontFamily:"'Share Tech Mono',monospace" }}>
+          {introOut}{!introDone&&<span style={{color,animation:"blink .65s infinite"}}>█</span>}
+        </p>
+        <div style={{ display:"flex",gap:4,marginTop:18,justifyContent:"center" }}>
+          {intro.lines.map((_,i)=>(
+            <div key={i} style={{ height:2,borderRadius:1,width:i===introIdx?18:5,
+              background:i<=introIdx?color:`rgba(${rgb},.16)`,transition:"all .3s" }}/>
+          ))}
+        </div>
+        {introDone&&<p style={{ textAlign:"center",marginTop:12,color:`rgba(${rgb},.32)`,fontSize:8,fontFamily:"'Orbitron',monospace",letterSpacing:3,animation:"pulse 1.5s infinite" }}>
+          {introIdx<intro.lines.length-1?"[ CONTINUER ]":"[ RÉPONDRE AUX QUESTIONS ]"}
+        </p>}
+      </div>
+    </div>
+  );
+
+  // ── FORM PHASE ──
+  return (
+    <div style={{ position:"fixed",inset:0,zIndex:2000,background:"rgba(2,2,12,.97)",overflowY:"auto",animation:"fadeInFast .22s ease" }}>
+      <div style={{ maxWidth:520,margin:"0 auto",padding:"24px 18px 80px" }}>
+        {/* Header */}
+        <div style={{ display:"flex",alignItems:"center",gap:10,marginBottom:24 }}>
+          <GemFrog color={color} size={32} mood="curious"/>
+          <div>
+            <p style={{ color,fontFamily:"'Orbitron',monospace",fontSize:11,letterSpacing:3 }}>KRYOS — QUESTIONS</p>
+            <p style={{ color:"rgba(255,255,255,.2)",fontSize:9,fontFamily:"'Share Tech Mono',monospace" }}>Réponds honnêtement pour un programme adapté</p>
+          </div>
+          <button onClick={onSkip} style={{ marginLeft:"auto",background:"none",border:"none",color:"rgba(255,255,255,.2)",fontSize:9,fontFamily:"'Orbitron',monospace",cursor:"pointer",letterSpacing:1 }}>PASSER</button>
+        </div>
+
+        {/* Questions */}
+        <div style={{ display:"flex",flexDirection:"column",gap:14 }}>
+          {questions.map((q, i) => (
+            <div key={q.id} style={{ animation:`fadeIn .3s ease ${i*0.05}s both` }}>
+              <div style={{ display:"flex",alignItems:"center",gap:8,marginBottom:8 }}>
+                <div style={{ width:18,height:18,borderRadius:"50%",background:`${color}18`,border:`1px solid ${color}33`,
+                  display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0 }}>
+                  <span style={{ color,fontSize:8,fontFamily:"'Orbitron',monospace",fontWeight:700 }}>{i+1}</span>
+                </div>
+                <p style={{ color:"rgba(255,255,255,.6)",fontSize:11,fontFamily:"'Orbitron',monospace",letterSpacing:1 }}>{q.label}</p>
+              </div>
+
+              {q.type === "select" ? (
+                <div style={{ display:"flex",flexDirection:"column",gap:5 }}>
+                  {q.options.map(opt => (
+                    <button key={opt} onClick={() => setAnswers(a=>({...a,[q.id]:opt}))}
+                      style={{ padding:"9px 13px",textAlign:"left",borderRadius:4,cursor:"pointer",transition:"all .15s",
+                        background:answers[q.id]===opt?`${color}12`:"rgba(255,255,255,.02)",
+                        border:`1px solid ${answers[q.id]===opt?color+"44":"rgba(255,255,255,.06)"}`,
+                        color:answers[q.id]===opt?color:"rgba(255,255,255,.35)",
+                        fontSize:11,fontFamily:"'Share Tech Mono',monospace" }}>
+                      <span style={{ marginRight:8,opacity:answers[q.id]===opt?1:.3 }}>{answers[q.id]===opt?"◆":"◇"}</span>
+                      {opt}
+                    </button>
+                  ))}
+                </div>
+              ) : (
+                <textarea value={answers[q.id]||""} onChange={e=>setAnswers(a=>({...a,[q.id]:e.target.value}))}
+                  placeholder={q.placeholder} rows={2}
+                  style={{ width:"100%",padding:"10px 12px",background:"rgba(255,255,255,.03)",
+                    border:`1px solid ${answers[q.id]?""+color+"33":"rgba(255,255,255,.08)"}`,
+                    borderRadius:4,color:"rgba(255,255,255,.7)",resize:"none",fontSize:11,
+                    fontFamily:"'Share Tech Mono',monospace",outline:"none",lineHeight:1.6 }}/>
+              )}
+            </div>
+          ))}
+        </div>
+
+        {/* Submit */}
+        <div style={{ marginTop:24,position:"sticky",bottom:20 }}>
+          <button onClick={handleSubmit} disabled={!allAnswered||loading}
+            style={{ width:"100%",padding:"14px",borderRadius:6,cursor:allAnswered&&!loading?"pointer":"not-allowed",
+              background:allAnswered?`${color}12`:"rgba(255,255,255,.02)",
+              border:`1px solid ${allAnswered?color+"44":"rgba(255,255,255,.06)"}`,
+              color:allAnswered?color:"rgba(255,255,255,.2)",
+              fontFamily:"'Orbitron',monospace",fontSize:10,letterSpacing:3,transition:"all .2s" }}>
+            {loading?"✦ GÉNÉRATION EN COURS...":"✦ GÉNÉRER MON PROGRAMME →"}
+          </button>
+          {!allAnswered && <p style={{ textAlign:"center",marginTop:8,color:"rgba(255,255,255,.15)",fontSize:9,fontFamily:"'Share Tech Mono',monospace" }}>
+            Réponds à toutes les questions à choix pour continuer
+          </p>}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function PlanScreen({ currentTier, onSelect }) {
+  const [selected, setSelected] = useState(currentTier || "gratuit");
+  return (
+    <div style={{ padding:"16px 16px 0" }}>
+      <p style={{ color:"rgba(255,255,255,.18)",fontSize:8,letterSpacing:3,fontFamily:"'Orbitron',monospace",marginBottom:4 }}>PROTOCOLE</p>
+      <h2 style={{ color:"#fff",fontFamily:"'Orbitron',monospace",fontSize:16,letterSpacing:2,marginBottom:4 }}>CHOISIR TON PLAN</h2>
+      <p style={{ color:"rgba(255,255,255,.25)",fontSize:10,fontFamily:"'Share Tech Mono',monospace",marginBottom:18,lineHeight:1.6 }}>
+        Chaque plan débarre la même transformation. La différence : le niveau de personnalisation de l'IA.
+      </p>
+      <div style={{ display:"flex",flexDirection:"column",gap:10,marginBottom:20 }}>
+        {TIERS.map(tier => {
+          const isActive = selected === tier.id;
+          const isCurrent = currentTier === tier.id;
+          return (
+            <div key={tier.id} onClick={() => setSelected(tier.id)}
+              style={{ background:isActive?`rgba(${tier.rgb},.07)`:"rgba(255,255,255,.02)",
+                border:`1px solid ${isActive?tier.color+"44":"rgba(255,255,255,.06)"}`,
+                borderRadius:8,padding:"14px 16px",cursor:"pointer",transition:"all .2s",
+                boxShadow:isActive?`0 0 20px rgba(${tier.rgb},.08)`:""  }}>
+              <div style={{ display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:10 }}>
+                <div style={{ display:"flex",alignItems:"center",gap:8 }}>
+                  <span style={{ color:tier.color,fontSize:18,textShadow:`0 0 10px ${tier.color}` }}>{tier.icon}</span>
+                  <div>
+                    <p style={{ color:tier.color,fontFamily:"'Orbitron',monospace",fontSize:11,letterSpacing:2 }}>{tier.label}</p>
+                    {isCurrent && <p style={{ color:`${tier.color}88`,fontSize:8,fontFamily:"'Orbitron',monospace",letterSpacing:2 }}>PLAN ACTUEL</p>}
+                  </div>
+                </div>
+                <div style={{ textAlign:"right" }}>
+                  <p style={{ color:tier.id==="gratuit"?"#22c55e":tier.color,fontFamily:"'Orbitron',monospace",fontSize:13,fontWeight:700 }}>{tier.price}</p>
+                  {tier.id!=="gratuit" && <p style={{ color:"rgba(255,255,255,.2)",fontSize:8,fontFamily:"'Orbitron',monospace" }}>BIENTÔT</p>}
+                </div>
+              </div>
+              <div style={{ display:"flex",flexDirection:"column",gap:5 }}>
+                {tier.features.map((f,i) => (
+                  <div key={i} style={{ display:"flex",alignItems:"center",gap:7 }}>
+                    <div style={{ width:5,height:5,borderRadius:"50%",background:tier.locked.length===0||i===0?tier.color:`${tier.color}33`,flexShrink:0 }}/>
+                    <span style={{ color:tier.locked.length===0||i===0?"rgba(255,255,255,.45)":"rgba(255,255,255,.18)",fontSize:10,fontFamily:"'Share Tech Mono',monospace" }}>{f}</span>
+                    {tier.id!=="gratuit" && i>0 && <span style={{ marginLeft:"auto",color:`${tier.color}44`,fontSize:8,fontFamily:"'Orbitron',monospace" }}>🔒</span>}
+                  </div>
+                ))}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+      <button onClick={() => onSelect(selected)}
+        style={{ width:"100%",padding:"13px",background:"rgba(0,255,200,.07)",border:"1px solid rgba(0,255,200,.3)",
+          borderRadius:6,color:"#00ffcc",fontFamily:"'Orbitron',monospace",fontSize:10,letterSpacing:3,cursor:"pointer" }}>
+        CONTINUER AVEC {TIERS.find(t=>t.id===selected)?.label} →
+      </button>
+      <p style={{ textAlign:"center",marginTop:10,color:"rgba(255,255,255,.15)",fontSize:9,fontFamily:"'Share Tech Mono',monospace" }}>
+        Les plans payants arrivent bientôt. Pour l'instant tout est gratuit.
+      </p>
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════
+// PROGRAMME SCREEN — affiché dans l'onglet QUÊTES ou dédié
+// ═══════════════════════════════════════════════════════════
 function SetupScreen({ onDone, onKryos }) {
   const [phase, setPhase] = useState(-1);
   const [nom, setNom] = useState("");
@@ -1514,6 +2394,76 @@ const getKryosDaily = (facetteId) => {
 
 
 
+
+// ═══════════════════════════════════════════════════════════
+// QUESTIONS KRYOS PAR FACETTE
+// ═══════════════════════════════════════════════════════════
+const QUESTIONS_PROGRAMME = {
+  athlete: [
+    { id:"niveau",     label:"Ton niveau actuel",         type:"select",  options:["Débutant — moins de 3 mois", "Intermédiaire — 3-12 mois", "Avancé — plus d'1 an", "Compétiteur"] },
+    { id:"objectif",   label:"Ton objectif principal",    type:"select",  options:["Perdre du poids / recomposition", "Prendre de la masse", "Performer / endurance", "Santé générale / énergie"] },
+    { id:"dispo",      label:"Jours disponibles/semaine", type:"select",  options:["2-3 jours", "4-5 jours", "6-7 jours", "Variable selon semaine"] },
+    { id:"contrainte", label:"Contrainte physique",       type:"select",  options:["Aucune", "Dos / lombaires", "Genoux", "Épaules", "Autre blessure"] },
+    { id:"equipement", label:"Équipement disponible",     type:"select",  options:["Salle de sport complète", "Home gym basique", "Aucun matériel — poids du corps", "Outdoor / running"] },
+    { id:"heure",      label:"Créneau préféré",           type:"select",  options:["Matin (avant 9h)", "Midi", "Après-midi", "Soir (après 18h)"] },
+    { id:"blocage",    label:"Ton plus grand blocage",    type:"text",    placeholder:"Ce qui t'a empêché de tenir jusqu'ici..." },
+  ],
+  createur: [
+    { id:"medium",     label:"Ton medium créatif principal", type:"select", options:["Écriture / contenu", "Vidéo / photo", "Design / art visuel", "Musique / son", "Code / produit", "Autre"] },
+    { id:"rythme",     label:"Temps création actuel/jour",   type:"select", options:["0-15 min", "15-30 min", "30-60 min", "Plus d'1h"] },
+    { id:"objectif",   label:"Objectif créatif",             type:"select", options:["Construire une audience", "Terminer un projet personnel", "Monétiser ma création", "S'exprimer / se libérer"] },
+    { id:"blocage",    label:"Ta résistance principale",     type:"select", options:["Peur du jugement", "Perfectionnisme", "Manque d'inspiration", "Manque de temps", "Procrastination"] },
+    { id:"dispo",      label:"Créneaux disponibles",         type:"select", options:["Matin uniquement", "Soir uniquement", "Week-end principalement", "Flexible"] },
+    { id:"inspiration",label:"Ce qui t'inspire le plus",     type:"text",   placeholder:"Artistes, œuvres, moments qui t'allument..." },
+    { id:"projet",     label:"Ton projet en ce moment",      type:"text",   placeholder:"Décris ce sur quoi tu travailles ou veux travailler..." },
+  ],
+  entrepreneur: [
+    { id:"stade",      label:"Stade de ton projet",       type:"select", options:["Idée — pas encore démarré", "Validation — premiers clients", "Croissance — revenus réguliers", "Scale — optimiser et déléguer"] },
+    { id:"secteur",    label:"Secteur / type de business", type:"select", options:["Service / conseil", "Produit digital", "E-commerce / physique", "SaaS / tech", "Autre"] },
+    { id:"blocage",    label:"Ton blocage principal",      type:"select", options:["Trouver des clients", "Passer à l'action", "Gestion du temps", "Mindset / peur d'échouer", "Compétences manquantes"] },
+    { id:"dispo",      label:"Heures dédiées/semaine",     type:"select", options:["Moins de 5h", "5-15h", "15-30h", "Plus de 30h — full time"] },
+    { id:"revenu",     label:"Objectif revenus 90 jours",  type:"select", options:["Premiers 500€", "1 000 - 3 000€/mois", "5 000 - 10 000€/mois", "Plus de 10 000€/mois"] },
+    { id:"force",      label:"Ta force principale",        type:"select", options:["Créer / construire", "Vendre / convaincre", "Analyser / optimiser", "Réseau / relations"] },
+    { id:"contexte",   label:"Ton contexte",               type:"text",   placeholder:"Salarié en parallèle ? Étudiant ? Full entrepreneur ? Décris ta situation..." },
+  ],
+  sage: [
+    { id:"pratique",   label:"Ta pratique actuelle",       type:"select", options:["Aucune — je commence", "Méditation occasionnelle", "Pratique régulière", "Pratique avancée"] },
+    { id:"objectif",   label:"Ce que tu cherches",         type:"select", options:["Calmer l'anxiété", "Clarté mentale / décisions", "Connexion à soi / sens", "Paix intérieure durable"] },
+    { id:"tradition",  label:"Approche qui te parle",      type:"select", options:["Stoïcisme / philosophie", "Bouddhisme / pleine conscience", "Psychologie moderne", "Spiritualité libre"] },
+    { id:"dispo",      label:"Temps dédié possible/jour",  type:"select", options:["5-10 min", "15-20 min", "30 min", "Plus d'1h"] },
+    { id:"obstacle",   label:"Ton obstacle principal",     type:"select", options:["Esprit agité — difficile de me poser", "Manque de régularité", "Scepticisme — j'y crois peu", "Environnement bruyant"] },
+    { id:"lecture",    label:"Type de lectures qui t'attirent", type:"select", options:["Philosophie / essais", "Psychologie / neurosciences", "Biographies", "Fiction inspirante"] },
+    { id:"question",   label:"La question que tu portes en ce moment", type:"text", placeholder:"Ce qui t'habite profondément, ce que tu cherches à comprendre..." },
+  ],
+  explorateur: [
+    { id:"style",      label:"Ton style d'exploration",    type:"select", options:["Voyages / géographique", "Expériences humaines / sociales", "Apprentissages / compétences", "Aventure physique / nature"] },
+    { id:"frein",      label:"Ce qui te retient",          type:"select", options:["Argent / budget", "Temps / obligations", "Peur / zone de confort", "Solitude / pas de compagnon"] },
+    { id:"frequence",  label:"Fréquence d'aventures souhaitée", type:"select", options:["Quelque chose de nouveau chaque jour", "1 expérience forte/semaine", "1 grande aventure/mois", "1 voyage/trimestre"] },
+    { id:"objectif",   label:"Ce que tu veux vivre ces 90j", type:"select", options:["Sortir radicalement de ma routine", "Voyager quelque part de nouveau", "Rencontrer des gens différents", "Développer une compétence inattendue"] },
+    { id:"dispo",      label:"Budget mensuel exploration",  type:"select", options:["Moins de 50€", "50-200€", "200-500€", "Pas de limite"] },
+    { id:"peur",       label:"Ton plus grand inconfort",    type:"select", options:["Parler à des inconnus", "Voyager seul", "Essayer quelque chose où je suis mauvais", "M'engager dans quelque chose d'incertain"] },
+    { id:"reve",       label:"L'expérience que tu rêves de vivre", type:"text", placeholder:"Quelque chose que tu n'as jamais osé faire mais qui t'attire..." },
+  ],
+  guerrier: [
+    { id:"combat",     label:"Ton combat principal en ce moment", type:"select", options:["Discipline / régularité", "Gestion des émotions", "Résistance à la douleur / effort", "Peur / courage", "Dépendances / mauvaises habitudes"] },
+    { id:"niveau",     label:"Ton niveau mental actuel",   type:"select", options:["Je cède souvent à la facilité", "Je résiste parfois mais pas toujours", "Je suis relativement discipliné", "Je cherche le niveau supérieur"] },
+    { id:"pratique",   label:"Ta pratique de renforcement", type:"select", options:["Aucune structure", "Sport régulier", "Méditation / stoïcisme", "Exposition volontaire à l'inconfort"] },
+    { id:"dispo",      label:"Intensité possible",         type:"select", options:["Je veux commencer doucement", "Prêt pour un rythme soutenu", "Je veux quelque chose d'extrême"] },
+    { id:"ennemi",     label:"Ton ennemi intérieur",       type:"select", options:["La procrastination", "Le confort / la mollesse", "La colère / réactivité", "Le doute de soi", "Les distractions"] },
+    { id:"victoire",   label:"Ta dernière grande victoire sur toi-même", type:"text", placeholder:"Quelque chose de difficile que tu as accompli et dont tu es fier..." },
+    { id:"objectif",   label:"Ce que tu veux forger en 90j", type:"text", placeholder:"Quelle version de toi veux-tu être à la fin du protocole ?" },
+  ],
+};
+
+const KRYOS_PROGRAMME_INTRO = {
+  athlete:      { title:"PROGRAMME ATHLÈTE", mood:"stern",   lines:["Avant de te donner un programme.", "J'ai besoin de savoir exactement où tu en es.", "Pas pour te juger. Pour ne pas te donner quelque chose d'inadapté.", "Réponds honnêtement. C'est pour toi."] },
+  createur:     { title:"PROGRAMME CRÉATEUR", mood:"curious", lines:["Un programme créatif sans contexte, c'est du bruit.", "Je veux comprendre ton univers avant de construire quelque chose.", "7 questions. Sois précis.", "Ce que tu mets ici, l'IA le lira pour personnaliser chaque détail."] },
+  entrepreneur: { title:"PROGRAMME ENTREPRENEUR", mood:"wise", lines:["Un entrepreneur sans programme adapté à son stade perd du temps.", "Je vais te poser des questions sur ta situation réelle.", "Pas sur tes rêves. Sur là où tu en es maintenant.", "C'est la seule façon de construire quelque chose d'utile."] },
+  sage:         { title:"PROGRAMME SAGE", mood:"wise",    lines:["La sagesse commence par la connaissance de soi.", "Avant de te donner un chemin, je veux comprendre où tu es.", "Ces questions sont une pratique en elles-mêmes.", "Réponds lentement. Observe ce qui monte."] },
+  explorateur:  { title:"PROGRAMME EXPLORATEUR", mood:"curious", lines:["L'exploration sans intention est du tourisme.", "Je veux comprendre ce que tu cherches vraiment.", "Pas l'aventure de surface. L'aventure qui compte.", "7 questions. Sois honnête sur tes freins."] },
+  guerrier:     { title:"PROGRAMME GUERRIER", mood:"stern", lines:["Un guerrier connaît ses ennemis.", "Y compris les intérieurs.", "Je vais te poser des questions directes.", "Réponds sans filtres. C'est là que le programme devient redoutable."] },
+};
+
 // ═══════════════════════════════════════════════════════════
 // API ANTHROPIC — génération programme IA
 // ═══════════════════════════════════════════════════════════
@@ -1535,22 +2485,29 @@ const callClaude = async (prompt) => {
   }
 };
 
-const genererProgramme = async (facetteId, valeurs=[], identite="", tier="gratuit") => {
+const genererProgramme = async (facetteId, valeurs=[], identite="", tier="gratuit", answers={}) => {
   const f = FACETTES.find(fc => fc.id === facetteId);
   const template = PROGRAMME_TEMPLATE[facetteId] || PROGRAMME_TEMPLATE.athlete;
-  const prompt = `Tu es un coach de transformation identitaire expert. Génère un programme personnalisé pour quelqu'un qui travaille la facette "${f?.label}" avec ces valeurs: ${valeurs.join(", ")}.
-Son identité cible: "${identite}".
+  const reponsesText = answers && Object.keys(answers).length > 0
+    ? "\n\nRéponses du questionnaire:\n" + Object.entries(answers).map(([k,v]) => `- ${k}: ${v}`).join("\n")
+    : "";
+
+  const prompt = `Tu es un coach de transformation identitaire expert. Génère un programme 90 jours hyper-personnalisé.
+
+Facette travaillée: ${f?.label}
+Valeurs: ${valeurs.join(", ")}
+Identité cible: "${identite}"${reponsesText}
 
 Réponds UNIQUEMENT en JSON valide, sans markdown, sans texte avant ou après:
 {
-  "sport": ["item1", "item2", "item3"],
-  "lectures": ["Titre — Auteur (raison courte)", "Titre — Auteur (raison courte)", "Titre — Auteur (raison courte)"],
-  "habitudes": ["habitude1", "habitude2", "habitude3"],
-  "planning": ["Lun: ...", "Mar: ...", "Mer: ...", "Jeu: ...", "Ven: ...", "Sam: ...", "Dim: ..."],
+  "sport": ["item1 adapté au profil", "item2", "item3", "item4"],
+  "lectures": ["Titre — Auteur (pourquoi ce livre pour ce profil)", "Titre — Auteur (raison)", "Titre — Auteur (raison)"],
+  "habitudes": ["habitude1 adaptée", "habitude2", "habitude3", "habitude4"],
+  "planning": ["Lun: activité spécifique", "Mar: ...", "Mer: ...", "Jeu: ...", "Ven: ...", "Sam: ...", "Dim: ..."],
   "generated": true
 }
 
-Sois précis, concret, et aligné avec la facette ${f?.label}. Chaque item max 60 caractères.`;
+Personnalise chaque item selon les réponses au questionnaire. Sois concret et spécifique. Max 65 caractères par item.`;
 
   const raw = await callClaude(prompt);
   if (!raw) return null;
@@ -1686,13 +2643,13 @@ const PROGRAMME_TEMPLATE = {
   },
 };
 
-const INIT={nom:null,valeurs:[],facetteId:null,identite:null,xp:0,totalVotes:0,histoire:{},facettesState:{},votesJour:{},customVotes:{},sommeilJour:false,energieJour:0,aureleJour:null,aureleAnswer:null,bossJour:false,lastDay:null,lastWeek:null,usedAureles:[],feedbacks:[],kryosDaily:null,kryosDailyDate:null,tier:"gratuit",programmeIA:null,programmeDate:null,rapportHebdo:null,objectifsCustom:[]};
+const INIT={nom:null,valeurs:[],facetteId:null,identite:null,xp:0,totalVotes:0,histoire:{},facettesState:{},votesJour:{},customVotes:{},sommeilJour:false,energieJour:0,aureleJour:null,aureleAnswer:null,bossJour:false,lastDay:null,lastWeek:null,usedAureles:[],feedbacks:[],kryosDaily:null,kryosDailyDate:null,tier:"gratuit",programmeIA:null,programmeDate:null,rapportHebdo:null,objectifsCustom:[],questionnaireDone:false,questionnaireAnswers:{}};
 
 export default function App() {
   const [screen,setScreen]=useState("intro");
   const [tab,setTab]=useState("facette");
   const [showDayClose,setShowDayClose]=useState(false);
-  const [showPlan,setShowPlan]=useState(false);
+  const [showQuestionnaire,setShowQuestionnaire]=useState(false);
   const [kryos,setKryos]=useState(null);
   const [xpNotif,setXpNotif]=useState(null);
   const [rankNotif,setRankNotif]=useState(null);
@@ -1793,14 +2750,15 @@ export default function App() {
   },[state.aureleAnswer]);
 
 
-  // Programme IA — génère si absent
+  // Programme IA — montre le questionnaire UNE SEULE FOIS (première visite onglet PROG)
+  const hasShownQuestionnaire = useRef(false);
   useEffect(()=>{
     if(!state.nom||!state.facetteId) return;
-    if(!state.programmeIA){
-      genererProgramme(state.facetteId, state.valeurs||[], state.identite||"", state.tier||"gratuit")
-        .then(prog=>{ if(prog) update({programmeIA:prog,programmeDate:today()}); });
+    if(tab==="programme" && !state.questionnaireDone && !hasShownQuestionnaire.current){
+      hasShownQuestionnaire.current = true;
+      setShowQuestionnaire(true);
     }
-  },[state.nom,state.facetteId]);
+  },[tab]);
 
   // Kryos daily thought — load once per day
   useEffect(()=>{
@@ -1835,9 +2793,14 @@ export default function App() {
   const handleChangeFacette=newId=>setState(s=>{ const fState={...(s.facettesState||{})}; if(!fState[newId])fState[newId]={xp:0}; const ns={...s,facetteId:newId,identite:`Je suis un·e ${FACETTES.find(f=>f.id===newId)?.label.toLowerCase()}`,facettesState:fState}; persist(ns); setTimeout(()=>setKryos("facette_changed"),400); return ns; });
 
 
-  const handleGenererProgramme = async () => {
-    const prog = await genererProgramme(state.facetteId, state.valeurs, state.identite, state.tier);
-    if (prog) update({ programmeIA: prog, programmeDate: today() });
+  const handleGenererProgramme = async (answers={}) => {
+    const prog = await genererProgramme(state.facetteId, state.valeurs, state.identite, state.tier||"gratuit", answers);
+    if (prog) update({ programmeIA: prog, programmeDate: today(), questionnaireAnswers: answers, questionnaireDone: true });
+  };
+
+  const handleQuestionnaireSubmit = async (answers) => {
+    setShowQuestionnaire(false);
+    await handleGenererProgramme(answers);
   };
 
   const handleGenererRapport = async () => {
@@ -1894,7 +2857,6 @@ export default function App() {
         <div style={{ padding:"12px 18px 10px",borderBottom:"1px solid rgba(0,255,200,.06)",display:"flex",justifyContent:"space-between",alignItems:"center",background:"rgba(4,4,15,.92)",backdropFilter:"blur(20px)",position:"sticky",top:0,zIndex:50 }}>
           <span style={{ color:"#00ffcc2a",fontSize:9,fontFamily:"'Orbitron',monospace",letterSpacing:3 }}>GEM VITALE</span>
           <div style={{ display:"flex",gap:11,alignItems:"center" }}>
-            <button onClick={()=>setShowPlan(true)} style={{background:"none",border:"none",cursor:"pointer",color:"rgba(255,255,255,.2)",fontSize:8,fontFamily:"'Orbitron',monospace",letterSpacing:1}}>{TIERS.find(t=>t.id===(state.tier||"gratuit"))?.icon} {(state.tier||"GRATUIT").toUpperCase()}</button>
             {streak>0&&<span style={{ color:"#f59e0b",fontSize:9,fontFamily:"'Orbitron',monospace" }}>🔥{streak}</span>}
             <span style={{ color:rank.color,fontSize:9,fontFamily:"'Orbitron',monospace",textShadow:`0 0 6px ${rank.color}` }}>{rank.id} — {rank.title}</span>
           </div>
@@ -1922,8 +2884,8 @@ export default function App() {
         {tab==="profil"&&<ProfileScreen state={state} onKryos={setKryos}/>}
         {tab==="quetes"&&<QuestsScreen state={state} onChangeFacette={handleChangeFacette} onKryos={setKryos}/>}
         {tab==="retour"&&<FeedbackScreen state={state} onSubmit={handleFeedback}/>}
-        {tab==="programme"&&<ProgrammeScreen state={state} onGenerate={handleGenererProgramme} onKryos={setKryos}/>}
-        {showPlan&&<div style={{position:"fixed",inset:0,zIndex:1800,background:"rgba(2,2,12,.97)",overflowY:"auto",paddingBottom:40}}><div style={{display:"flex",justifyContent:"flex-end",padding:"14px 16px"}}><button onClick={()=>setShowPlan(false)} style={{background:"none",border:"none",color:"rgba(255,255,255,.3)",fontSize:11,cursor:"pointer",fontFamily:"'Orbitron',monospace"}}>✕ FERMER</button></div><PlanScreen currentTier={state.tier||"gratuit"} onSelect={handleSetTier}/></div>}
+        {tab==="programme"&&<ProgrammeScreen state={state} onKryos={setKryos}/>}
+        {showQuestionnaire&&<KryosQuestionnaire facetteId={state.facetteId} onDone={handleQuestionnaireSubmit} onSkip={()=>{setShowQuestionnaire(false);handleGenererProgramme({});}} />}
 
         {/* Bottom nav */}
         <div style={{ position:"fixed",bottom:0,left:0,right:0,background:"rgba(4,4,15,.97)",borderTop:"1px solid rgba(0,255,200,.06)",display:"flex",justifyContent:"space-around",padding:"9px 0 20px",backdropFilter:"blur(24px)",zIndex:100 }}>
