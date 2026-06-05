@@ -1309,6 +1309,8 @@ function VotesScreen({ state, onVote, onSommeil, onEnergie, onAurele, onAureleAn
             <p style={{color:"rgba(255,255,255,.2)",fontSize:8,fontFamily:"'Share Tech Mono',monospace",marginTop:1}}>Reviens demain pour voter</p>
           </div>
         </div>
+        <DailyTimer color={f?.color||"#a78bfa"}/>
+      </div>
       )}
       <div style={{ display:"flex",justifyContent:"space-between",alignItems:"center",background:"rgba(0,255,100,.05)",border:"1px solid rgba(0,255,100,.1)",borderRadius:6,padding:"9px 14px",marginBottom:13 }}>
         <span style={{ color:"rgba(255,255,255,.28)",fontSize:9,fontFamily:"'Orbitron',monospace",letterSpacing:2 }}>XP AUJOURD'HUI</span>
@@ -1323,6 +1325,7 @@ function VotesScreen({ state, onVote, onSommeil, onEnergie, onAurele, onAureleAn
             <button onClick={()=>!journeeScellee&&onBoss()} style={{ padding:"5px 10px",borderRadius:3,background:bossJour?"rgba(239,68,68,.18)":"rgba(255,255,255,.025)",border:`1px solid ${bossJour?"#ef4444":"rgba(239,68,68,.18)"}`,color:bossJour?"#ef4444":"rgba(255,255,255,.22)",fontSize:9,cursor:"pointer",fontFamily:"'Orbitron',monospace",transition:"all .2s" }}>{bossJour?"✓":"RELEVER"}</button>
           </div>
         </div>
+        {!bossJour && <WeeklyTimer/>}
       </div>
       {/* Sommeil + Energie */}
       <div style={{ display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:9 }}>
@@ -2061,6 +2064,85 @@ function ProgrammeScreen({ state, onKryos }) {
 // ═══════════════════════════════════════════════════════════
 // PROGRAMME SCREEN — affiché dans l'onglet QUÊTES ou dédié
 // ═══════════════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════════════
+// COUNTDOWN TIMERS
+// ═══════════════════════════════════════════════════════════
+function useCountdown(targetFn) {
+  const [timeLeft, setTimeLeft] = useState("");
+  useEffect(() => {
+    const update = () => {
+      const target = targetFn();
+      const diff = target - new Date();
+      if (diff <= 0) { setTimeLeft("00:00:00"); return; }
+      const h = Math.floor(diff / 3600000);
+      const m = Math.floor((diff % 3600000) / 60000);
+      const s = Math.floor((diff % 60000) / 1000);
+      setTimeLeft(`${String(h).padStart(2,"0")}:${String(m).padStart(2,"0")}:${String(s).padStart(2,"0")}`);
+    };
+    update();
+    const t = setInterval(update, 1000);
+    return () => clearInterval(t);
+  }, []);
+  return timeLeft;
+}
+
+function DailyTimer({ color="#a78bfa" }) {
+  const timeLeft = useCountdown(() => {
+    const d = new Date();
+    d.setDate(d.getDate() + 1);
+    d.setHours(0, 0, 0, 0);
+    return d;
+  });
+  const rgb = color.slice(1).match(/.{2}/g)?.map(x=>parseInt(x,16)).join(",") || "167,139,250";
+  return (
+    <div style={{display:"flex",alignItems:"center",gap:8,padding:"7px 12px",
+      background:`rgba(${rgb},.05)`,border:`1px solid rgba(${rgb},.15)`,
+      borderRadius:5,marginTop:8}}>
+      <span style={{color:`rgba(${rgb},.5)`,fontSize:9,fontFamily:"'Orbitron',monospace",letterSpacing:2}}>
+        🕐 DÉBLOCAGE DANS
+      </span>
+      <span style={{color:`rgba(${rgb},.8)`,fontSize:12,fontFamily:"'Orbitron',monospace",fontWeight:700,
+        textShadow:`0 0 8px rgba(${rgb},.4)`,letterSpacing:2}}>
+        {timeLeft}
+      </span>
+    </div>
+  );
+}
+
+function WeeklyTimer({ color="#ef4444" }) {
+  const timeLeft = useCountdown(() => {
+    const d = new Date();
+    const day = d.getDay();
+    const daysUntilMonday = day === 0 ? 1 : 8 - day;
+    const next = new Date(d);
+    next.setDate(d.getDate() + daysUntilMonday);
+    next.setHours(0, 0, 0, 0);
+    return next;
+  });
+  const rgb = "239,68,68";
+  // Calculate days + time
+  const parts = timeLeft.split(":");
+  const totalSecs = parts.length === 3
+    ? parseInt(parts[0])*3600 + parseInt(parts[1])*60 + parseInt(parts[2])
+    : 0;
+  const days = Math.floor(totalSecs / 86400);
+  const hms = timeLeft;
+  return (
+    <div style={{display:"flex",alignItems:"center",gap:8,padding:"7px 12px",
+      background:`rgba(${rgb},.04)`,border:`1px solid rgba(${rgb},.12)`,
+      borderRadius:5,marginTop:6}}>
+      <span style={{color:`rgba(${rgb},.45)`,fontSize:9,fontFamily:"'Orbitron',monospace",letterSpacing:2}}>
+        ⚔ BOSS RESET
+      </span>
+      <span style={{color:`rgba(${rgb},.7)`,fontSize:12,fontFamily:"'Orbitron',monospace",fontWeight:700,
+        textShadow:`0 0 8px rgba(${rgb},.3)`,letterSpacing:2}}>
+        {days > 0 ? `${days}j ${hms}` : hms}
+      </span>
+    </div>
+  );
+}
+
+
 function SetupScreen({ onDone, onKryos }) {
   const [phase, setPhase] = useState(-1);
   const [nom, setNom] = useState("");
