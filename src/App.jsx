@@ -297,6 +297,21 @@ input::placeholder,textarea::placeholder{color:rgba(255,255,255,.16);}
 // GEM FROG
 // ═══════════════════════════════════════════════════════════
 function GemFrog({ color="#00ffcc", size=120, mood="neutral" }) {
+  const glow = mood === "proud" ? 1.4 : mood === "stern" ? 0.7 : mood === "curious" ? 1.1 : 1;
+  return (
+    <img
+      src="/kryos.png"
+      alt="Kryos"
+      width={size}
+      height={size}
+      style={{
+        objectFit: "contain",
+        filter: `drop-shadow(0 0 ${Math.round(size*0.12*glow)}px rgba(255,200,0,0.7)) drop-shadow(0 0 ${Math.round(size*0.22*glow)}px rgba(${color.slice(1).match(/.{2}/g).map(x=>parseInt(x,16)).join(',')},0.35))`,
+        animation: "float 3.5s ease-in-out infinite",
+      }}
+    />
+  );
+}) {
   const [blink, setBlink] = useState(false);
   useEffect(() => {
     const t = setInterval(() => { setBlink(true); setTimeout(() => setBlink(false), 140); }, 2800 + Math.random()*1800);
