@@ -272,25 +272,217 @@ const getWeekKey = () => { const d=new Date(); const day=d.getDay(); const diff=
 // ═══════════════════════════════════════════════════════════
 const CSS = `
 @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;600;700;900&family=Share+Tech+Mono&display=swap');
-@keyframes float    {0%,100%{transform:translateY(0)}50%{transform:translateY(-7px)}}
-@keyframes floatGem {0%,100%{transform:translateY(0) rotate(0deg)}50%{transform:translateY(-6px) rotate(.8deg)}}
-@keyframes fadeIn   {from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
+
+/* ── ANIMATIONS ── */
+@keyframes float     {0%,100%{transform:translateY(0)}50%{transform:translateY(-8px)}}
+@keyframes floatGem  {0%,100%{transform:translateY(0) rotate(0deg)}50%{transform:translateY(-6px) rotate(.8deg)}}
+@keyframes fadeIn    {from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}
 @keyframes fadeInFast{from{opacity:0}to{opacity:1}}
-@keyframes blink    {0%,100%{opacity:1}50%{opacity:0}}
-@keyframes slideR   {from{opacity:0;transform:translateX(18px)}to{opacity:1;transform:translateX(0)}}
-@keyframes fadeOut  {to{opacity:0;transform:translateY(-10px)}}
-@keyframes pulse    {0%,100%{opacity:.45}50%{opacity:1}}
-@keyframes rankUp   {0%{transform:scale(.4);opacity:0}65%{transform:scale(1.15)}100%{transform:scale(1);opacity:1}}
-@keyframes auraRing {0%{transform:scale(1);opacity:.5}100%{transform:scale(1.9);opacity:0}}
-@keyframes glowP    {0%,100%{filter:drop-shadow(0 0 8px var(--c))}50%{filter:drop-shadow(0 0 24px var(--c))}}
-@keyframes flicker  {0%,89%,91%,94%,100%{opacity:1}90%{opacity:.75}93%{opacity:.9}}
-@keyframes scanMove {0%{transform:translateY(-100%)}100%{transform:translateY(100vh)}}
+@keyframes blink     {0%,100%{opacity:1}50%{opacity:0}}
+@keyframes slideR    {from{opacity:0;transform:translateX(18px)}to{opacity:1;transform:translateX(0)}}
+@keyframes fadeOut   {to{opacity:0;transform:translateY(-10px)}}
+@keyframes pulse     {0%,100%{opacity:.35}50%{opacity:1}}
+@keyframes rankUp    {0%{transform:scale(.3);opacity:0}60%{transform:scale(1.2)}100%{transform:scale(1);opacity:1}}
+@keyframes glowP     {0%,100%{filter:drop-shadow(0 0 8px var(--c))}50%{filter:drop-shadow(0 0 28px var(--c))}}
+@keyframes flicker   {0%,89%,91%,94%,100%{opacity:1}90%{opacity:.7}93%{opacity:.9}}
+@keyframes xpCount   {0%{transform:scale(.8);opacity:0}60%{transform:scale(1.2)}100%{transform:scale(1);opacity:1}}
+@keyframes scanLine  {0%{top:-10%}100%{top:110%}}
+@keyframes neonPulse {0%,100%{box-shadow:0 0 4px var(--nc),0 0 8px var(--nc),inset 0 0 4px rgba(255,255,255,.03)}50%{box-shadow:0 0 8px var(--nc),0 0 20px var(--nc),0 0 40px var(--nc)33,inset 0 0 8px rgba(255,255,255,.05)}}
+@keyframes cornerSpin{0%{opacity:.4}50%{opacity:1}100%{opacity:.4}}
+@keyframes slideUp   {from{opacity:0;transform:translateY(20px)}to{opacity:1;transform:translateY(0)}}
+@keyframes glowBorder{0%,100%{opacity:.5}50%{opacity:1}}
+@keyframes holo      {0%{background-position:0% 50%}50%{background-position:100% 50%}100%{background-position:0% 50%}}
+
+/* ── BASE ── */
 *{box-sizing:border-box;margin:0;padding:0;}
-body{background:#04040f;overflow-x:hidden;}
+html,body{
+  background:#000008;
+  overflow-x:hidden;
+  -webkit-font-smoothing:antialiased;
+}
+body::before{
+  content:'';
+  position:fixed;
+  inset:0;
+  background:
+    radial-gradient(ellipse 80% 40% at 50% -10%, rgba(80,0,160,.18) 0%, transparent 70%),
+    radial-gradient(ellipse 60% 30% at 100% 100%, rgba(0,80,160,.12) 0%, transparent 60%);
+  pointer-events:none;
+  z-index:0;
+}
+
+/* ── SCROLLBAR ── */
 ::-webkit-scrollbar{width:2px;}
-::-webkit-scrollbar-thumb{background:#ffffff0e;}
-input,textarea{caret-color:#00ffcc;}
-input::placeholder,textarea::placeholder{color:rgba(255,255,255,.16);}
+::-webkit-scrollbar-thumb{background:rgba(255,255,255,.08);border-radius:2px;}
+
+/* ── INPUTS ── */
+input,textarea{
+  caret-color:#00ffcc;
+  background:rgba(255,255,255,.03);
+  border:1px solid rgba(255,255,255,.08);
+  border-radius:4px;
+  color:rgba(255,255,255,.8);
+  font-family:'Share Tech Mono',monospace;
+}
+input::placeholder,textarea::placeholder{color:rgba(255,255,255,.14);}
+input:focus,textarea:focus{
+  outline:none;
+  border-color:rgba(0,255,200,.3);
+  box-shadow:0 0 0 1px rgba(0,255,200,.1),0 0 12px rgba(0,255,200,.08);
+}
+
+/* ── NEON CARD ── */
+.neon-card{
+  position:relative;
+  background:linear-gradient(135deg,rgba(255,255,255,.04) 0%,rgba(255,255,255,.01) 100%);
+  border:1px solid rgba(255,255,255,.07);
+  border-radius:6px;
+  backdrop-filter:blur(4px);
+  overflow:hidden;
+}
+.neon-card::before{
+  content:'';
+  position:absolute;
+  inset:0;
+  background:linear-gradient(135deg,rgba(255,255,255,.06) 0%,transparent 50%);
+  pointer-events:none;
+}
+
+/* ── SCAN LINE EFFECT ── */
+.scan-container{position:relative;overflow:hidden;}
+.scan-container::after{
+  content:'';
+  position:absolute;
+  left:0;right:0;height:1px;
+  background:linear-gradient(90deg,transparent,rgba(0,255,200,.15),transparent);
+  animation:scanLine 4s linear infinite;
+  pointer-events:none;
+}
+
+/* ── CORNER BRACKETS ── */
+.corner-tl,.corner-tr,.corner-bl,.corner-br{
+  position:absolute;width:12px;height:12px;
+  animation:cornerSpin 3s ease-in-out infinite;
+}
+.corner-tl{top:6px;left:6px;border-top:1.5px solid;border-left:1.5px solid;}
+.corner-tr{top:6px;right:6px;border-top:1.5px solid;border-right:1.5px solid;}
+.corner-bl{bottom:6px;left:6px;border-bottom:1.5px solid;border-left:1.5px solid;}
+.corner-br{bottom:6px;right:6px;border-bottom:1.5px solid;border-right:1.5px solid;}
+
+/* ── XP BAR ── */
+.xp-bar-fill{
+  position:relative;
+  border-radius:3px;
+  transition:width 1.2s cubic-bezier(.4,0,.2,1);
+}
+.xp-bar-fill::after{
+  content:'';
+  position:absolute;
+  right:0;top:0;bottom:0;
+  width:3px;
+  background:white;
+  border-radius:2px;
+  box-shadow:0 0 6px white,0 0 12px white;
+  animation:pulse 1.5s ease-in-out infinite;
+}
+
+/* ── STAT BADGE ── */
+.stat-badge{
+  background:rgba(255,255,255,.03);
+  border:1px solid rgba(255,255,255,.07);
+  border-radius:5px;
+  padding:10px 6px;
+  text-align:center;
+  position:relative;
+  overflow:hidden;
+}
+.stat-badge::before{
+  content:'';
+  position:absolute;
+  inset:0;
+  background:linear-gradient(135deg,rgba(255,255,255,.04) 0%,transparent 60%);
+}
+
+/* ── VOTE BUTTON ── */
+.vote-btn{
+  display:flex;align-items:center;gap:10px;
+  padding:11px 13px;
+  border-radius:5px;
+  border:1px solid rgba(255,255,255,.06);
+  background:rgba(255,255,255,.02);
+  cursor:pointer;
+  transition:all .18s cubic-bezier(.4,0,.2,1);
+  width:100%;text-align:left;
+  position:relative;overflow:hidden;
+}
+.vote-btn::before{
+  content:'';
+  position:absolute;
+  top:0;left:-100%;width:100%;height:100%;
+  background:linear-gradient(90deg,transparent,rgba(255,255,255,.04),transparent);
+  transition:left .4s ease;
+}
+.vote-btn:hover::before,.vote-btn.active::before{left:100%;}
+.vote-btn.active{
+  border-color:var(--fc,#00ffcc);
+  background:rgba(0,255,200,.06);
+  box-shadow:0 0 12px rgba(0,255,200,.1),inset 0 0 8px rgba(0,255,200,.04);
+}
+
+/* ── TAB BAR ── */
+.tab-bar{
+  position:fixed;bottom:0;left:0;right:0;
+  background:rgba(0,0,8,.95);
+  border-top:1px solid rgba(255,255,255,.06);
+  display:flex;justify-content:space-around;
+  padding:8px 0 max(16px,env(safe-area-inset-bottom));
+  backdrop-filter:blur(20px);
+  z-index:100;
+}
+.tab-btn{
+  display:flex;flex-direction:column;align-items:center;gap:3px;
+  background:none;border:none;cursor:pointer;
+  padding:4px 12px;min-width:52px;
+  transition:all .2s;
+}
+.tab-btn.active .tab-label{text-shadow:0 0 8px var(--fc,#00ffcc);}
+.tab-label{
+  font-size:7px;font-family:'Orbitron',monospace;letter-spacing:1.5px;
+  transition:all .2s;
+}
+
+/* ── RANK BADGE ── */
+.rank-badge{
+  display:inline-flex;align-items:center;gap:8px;
+  padding:6px 16px;
+  border-radius:4px;
+  position:relative;
+  overflow:hidden;
+}
+.rank-badge::before{
+  content:'';
+  position:absolute;inset:0;
+  background:linear-gradient(135deg,rgba(255,255,255,.08) 0%,transparent 60%);
+}
+
+/* ── SECTION HEADER ── */
+.section-header{
+  font-size:8px;font-family:'Orbitron',monospace;letter-spacing:3px;
+  color:rgba(255,255,255,.2);
+  display:flex;align-items:center;gap:10px;
+  margin-bottom:10px;
+}
+.section-header::after{
+  content:'';flex:1;height:1px;
+  background:linear-gradient(90deg,rgba(255,255,255,.08),transparent);
+}
+
+/* ── MOBILE SAFE ── */
+.app-scroll{
+  overflow-y:auto;
+  -webkit-overflow-scrolling:touch;
+  padding-bottom:80px;
+}
 `;
 
 // ═══════════════════════════════════════════════════════════
@@ -346,7 +538,7 @@ function KryosModal({ dialogueKey, color="#00ffcc", onClose }) {
   return (
     <div onClick={advance} style={{ position:"fixed",inset:0,zIndex:2000,
       display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"flex-end",
-      background:"rgba(2,2,12,.94)", animation:"fadeInFast .22s ease" }}>
+      background:"rgba(0,0,6,.97)", animation:"fadeInFast .22s ease" }}>
       <div style={{ position:"absolute",top:36,left:0,right:0,textAlign:"center" }}>
         <p style={{ color:`rgba(${rgb},.4)`,fontSize:9,fontFamily:"'Orbitron',monospace",letterSpacing:5 }}>{dialogue.title}</p>
       </div>
@@ -356,7 +548,7 @@ function KryosModal({ dialogueKey, color="#00ffcc", onClose }) {
       <div style={{ marginBottom:-8,zIndex:1,animation:"float 4s ease-in-out infinite",filter:`drop-shadow(0 24px 40px rgba(${rgb},.22))` }}>
         <GemFrog color={color} size={152} mood={dialogue.mood||"neutral"} />
       </div>
-      <div style={{ width:"100%",maxWidth:520,background:`linear-gradient(180deg,rgba(6,6,22,.98) 0%,rgba(4,4,16,1) 100%)`,borderTop:`1px solid rgba(${rgb},.18)`,padding:"26px 22px 44px",position:"relative" }}>
+      <div style={{ width:"100%",maxWidth:520,background:"linear-gradient(180deg,rgba(2,2,14,.99) 0%,rgba(0,0,8,1) 100%)",borderTop:`1px solid rgba(${rgb},.18)`,padding:"26px 22px 44px",position:"relative" }}>
         {[[true,true],[true,false],[false,true],[false,false]].map(([t,l],i)=>(
           <div key={i} style={{ position:"absolute",top:t?9:"auto",bottom:t?"auto":9,left:l?9:"auto",right:l?"auto":9,width:12,height:12,
             borderTop:t?`1px solid rgba(${rgb},.32)`:"none",borderBottom:t?"none":`1px solid rgba(${rgb},.32)`,
@@ -417,7 +609,7 @@ function InfoTip({ text, color="#00ffcc" }) {
 
 function StatCard({ label, val, color, tip }) {
   return (
-    <div style={{ background:"rgba(255,255,255,.03)", border:`1px solid ${color}18`,
+    <div style={{ background:"rgba(255,255,255,.025)", border:`1px solid ${color}18`,
       borderRadius:6, padding:"9px 6px", textAlign:"center",
       boxShadow:`inset 0 0 18px ${color}07` }}>
       <div style={{ color, fontSize:17, fontFamily:"'Orbitron',monospace", fontWeight:700,
@@ -519,6 +711,117 @@ function Gem3D({ color="#00ffcc", rank="E", size=260 }) {
 // FACETTE HUD
 // ═══════════════════════════════════════════════════════════
 function FacetteHUD({ f, fRank, fXP, streak, identite, joursFaits, kryosDaily }) {
+  const next = typeof getNextRank === 'function' ? getNextRank(fXP) : RANKS.find(r=>r.minXP>fXP);
+  const pct = next ? (fXP-fRank.minXP)/(next.minXP-fRank.minXP)*100 : 100;
+  const phase = joursFaits<5?"INITIATION":joursFaits<10?"INTÉGRATION":"MAÎTRISE";
+  const phaseColor = joursFaits<5?"#22c55e":joursFaits<10?"#3b82f6":"#a855f7";
+  const c = f?.color||"#00ffcc";
+  const rgb = f?.rgb||"0,255,204";
+
+  return (
+    <div style={{position:"relative",width:"100%",background:"#000008",minHeight:420,overflow:"hidden"}}
+      className="scan-container">
+
+      {/* Ambient glow bg */}
+      <div style={{position:"absolute",inset:0,background:`radial-gradient(ellipse 70% 50% at 50% 30%,rgba(${rgb},.06) 0%,transparent 70%)`,pointerEvents:"none"}}/>
+
+      {/* Top section — mascot + name */}
+      <div style={{position:"relative",zIndex:1,textAlign:"center",padding:"32px 20px 16px",display:"flex",flexDirection:"column",alignItems:"center",gap:12}}>
+
+        {/* Mascot with neon ring */}
+        <div style={{position:"relative",width:120,height:120}}>
+          <div style={{position:"absolute",inset:-8,borderRadius:"50%",border:`1px solid rgba(${rgb},.2)`,animation:"pulse 3s ease-in-out infinite"}}/>
+          <div style={{position:"absolute",inset:-16,borderRadius:"50%",border:`1px solid rgba(${rgb},.08)`,animation:"pulse 3s ease-in-out infinite .5s"}}/>
+          {f?.img
+            ? <img src={f.img} alt={f?.label} style={{width:120,height:120,objectFit:"contain",filter:`drop-shadow(0 0 16px rgba(${rgb},.6)) drop-shadow(0 0 32px rgba(${rgb},.25))`,animation:"float 4s ease-in-out infinite"}}/>
+            : <div style={{fontSize:72,lineHeight:"120px",filter:`drop-shadow(0 0 18px ${c})`,animation:"float 4s ease-in-out infinite"}}>{f?.icon}</div>
+          }
+        </div>
+
+        {/* Name */}
+        <div>
+          <div style={{color:c,fontFamily:"'Orbitron',monospace",fontSize:20,fontWeight:900,letterSpacing:5,
+            textShadow:`0 0 20px rgba(${rgb},.8),0 0 40px rgba(${rgb},.4)`,marginBottom:4}}>
+            {f?.label?.toUpperCase()}
+          </div>
+          <div style={{color:`rgba(${rgb},.4)`,fontSize:9,fontFamily:"'Share Tech Mono',monospace",letterSpacing:2}}>
+            {identite}
+          </div>
+        </div>
+
+        {/* Rank badge */}
+        <div className="rank-badge" style={{"--nc":fRank.color,background:`rgba(${fRank.rgb},.08)`,border:`1px solid rgba(${fRank.rgb},.25)`,animation:"neonPulse 3s ease-in-out infinite"}}>
+          <span style={{color:fRank.color,fontSize:22,fontFamily:"'Orbitron',monospace",fontWeight:900,textShadow:`0 0 12px ${fRank.color}`}}>{fRank.id}</span>
+          <div style={{textAlign:"left"}}>
+            <div style={{color:fRank.color,fontSize:10,fontFamily:"'Orbitron',monospace",letterSpacing:2}}>{fRank.title.toUpperCase()}</div>
+            <div style={{color:`rgba(${fRank.rgb},.35)`,fontSize:8,fontFamily:"'Orbitron',monospace"}}>RANG ACTUEL</div>
+          </div>
+        </div>
+      </div>
+
+      {/* XP bar */}
+      <div style={{padding:"0 20px",marginBottom:16,position:"relative",zIndex:1}}>
+        <div style={{display:"flex",justifyContent:"space-between",marginBottom:5}}>
+          <span style={{color:"rgba(255,255,255,.2)",fontSize:8,fontFamily:"'Orbitron',monospace",letterSpacing:2}}>EXPERIENCE</span>
+          <span style={{color:c,fontSize:8,fontFamily:"'Orbitron',monospace"}}>{fXP} / {next?.minXP||800} XP</span>
+        </div>
+        <div style={{height:6,background:"rgba(255,255,255,.04)",borderRadius:3,position:"relative",overflow:"hidden",border:"1px solid rgba(255,255,255,.06)"}}>
+          <div style={{position:"absolute",inset:0,background:`linear-gradient(90deg,rgba(${rgb},.15),transparent)`}}/>
+          <div className="xp-bar-fill" style={{height:"100%",width:`${pct}%`,background:`linear-gradient(90deg,rgba(${rgb},.6),${c})`,boxShadow:`0 0 10px rgba(${rgb},.6),0 0 20px rgba(${rgb},.3)`,"--c":c}}/>
+        </div>
+        {next&&<div style={{textAlign:"right",marginTop:3,color:`rgba(${rgb},.3)`,fontSize:7,fontFamily:"'Orbitron',monospace"}}>{next.minXP-fXP} XP → RANG {next.id}</div>}
+      </div>
+
+      {/* Stats grid */}
+      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:8,padding:"0 16px",marginBottom:14,position:"relative",zIndex:1}}>
+        {[
+          {label:f?.stat||"VIT",val:Math.min(fXP,999),color:c,tip:`Score ${f?.stat} — Augmente avec chaque vote.`},
+          {label:"STREAK",val:streak>0?`${streak}🔥`:0,color:"#f59e0b",tip:"Jours consécutifs votés."},
+          {label:"JOURS",val:joursFaits,color:"#a78bfa",tip:"Journées validées sur 15."},
+        ].map(({label,val,color:sc,tip})=>(
+          <div key={label} className="stat-badge" style={{"--nc":sc}}>
+            <div style={{color:sc,fontSize:18,fontFamily:"'Orbitron',monospace",fontWeight:700,textShadow:`0 0 10px ${sc}`,position:"relative"}}>{val}</div>
+            <div style={{display:"flex",alignItems:"center",justifyContent:"center",gap:3,marginTop:2,position:"relative"}}>
+              <span style={{color:"rgba(255,255,255,.18)",fontSize:7,fontFamily:"'Orbitron',monospace",letterSpacing:1}}>{label}</span>
+              {tip&&<InfoTip text={tip} color={sc}/>}
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* Cycle timeline */}
+      <div style={{padding:"0 16px",marginBottom:12,position:"relative",zIndex:1}}>
+        <div style={{display:"flex",justifyContent:"space-between",marginBottom:5,alignItems:"center"}}>
+          <span style={{color:"rgba(255,255,255,.18)",fontSize:7,fontFamily:"'Orbitron',monospace",letterSpacing:2}}>CYCLE — JOUR {joursFaits}/15</span>
+          <span style={{color:phaseColor,fontSize:7,fontFamily:"'Orbitron',monospace",letterSpacing:1}}>{phase}</span>
+        </div>
+        <div style={{height:4,background:"rgba(255,255,255,.04)",borderRadius:3,overflow:"hidden",border:"1px solid rgba(255,255,255,.05)",position:"relative"}}>
+          <div style={{position:"absolute",left:0,top:0,bottom:0,width:"33%",background:"rgba(34,197,94,.07)",borderRight:"1px solid rgba(34,197,94,.12)"}}/>
+          <div style={{position:"absolute",left:"33%",top:0,bottom:0,width:"34%",background:"rgba(59,130,246,.07)",borderRight:"1px solid rgba(59,130,246,.12)"}}/>
+          <div style={{position:"absolute",left:"67%",top:0,bottom:0,right:0,background:"rgba(168,85,247,.07)"}}/>
+          <div style={{height:"100%",width:`${Math.min(joursFaits/15*100,100)}%`,background:"linear-gradient(90deg,#22c55e,#3b82f6,#a855f7)",transition:"width 1s ease",position:"relative"}}>
+            <div style={{position:"absolute",right:0,top:0,bottom:0,width:2,background:"white",opacity:.9,boxShadow:"0 0 5px white"}}/>
+          </div>
+        </div>
+      </div>
+
+      {/* Kryos daily */}
+      {kryosDaily&&(
+        <div style={{margin:"0 16px 10px",padding:"10px 12px",background:"rgba(255,255,255,.02)",border:"1px solid rgba(255,255,255,.06)",borderRadius:5,position:"relative",zIndex:1}}>
+          <div style={{display:"flex",gap:8,alignItems:"flex-start"}}>
+            <img src="/kryos.png" alt="Kryos" style={{width:24,height:24,objectFit:"contain",flexShrink:0,filter:"drop-shadow(0 0 4px rgba(255,200,0,.5))"}}/>
+            <p style={{color:"rgba(255,255,255,.35)",fontSize:10,lineHeight:1.65,fontFamily:"'Share Tech Mono',monospace",fontStyle:"italic"}}>"{kryosDaily}"</p>
+          </div>
+        </div>
+      )}
+
+      {/* Corner brackets */}
+      {[[true,true],[true,false],[false,true],[false,false]].map(([t,l],i)=>(
+        <div key={i} className={`corner-${t?"t":"b"}${l?"l":"r"}`} style={{borderColor:`rgba(${rgb},.4)`}}/>
+      ))}
+    </div>
+  );
+}) {
   const next = getNext(fXP);
   const pct = next ? (fXP-fRank.minXP)/(next.minXP-fRank.minXP)*100 : 100;
   return (
@@ -742,11 +1045,11 @@ function ProfileScreen({ state, onKryos }) {
         ))}
       </div>
       <div style={{ margin:"0 16px",background:"rgba(255,255,255,.02)",border:"1px solid rgba(255,255,255,.05)",borderRadius:8,padding:"13px 14px" }}>
-        <p style={{ color:"rgba(255,255,255,.18)",fontSize:8,letterSpacing:3,fontFamily:"'Orbitron',monospace",marginBottom:11 }}>TOUTES LES FACETTES</p>
+        <p style={{ color:"rgba(255,255,255,.18)",fontSize:8,letterSpacing:3,fontFamily:"'Orbitron',monospace",marginBottom:11,textTransform:"uppercase" }}>TOUTES LES FACETTES</p>
         {FACETTES.map(fc=>{
           const fcs=(facettesState)[fc.id]||{xp:0}; const fcR=getRank(fcs.xp||0); const isAct=fc.id===facetteId;
           return (
-            <div key={fc.id} style={{ display:"flex",alignItems:"center",gap:9,padding:"6px 9px",borderRadius:4,background:isAct?`${fc.color}07`:"transparent",border:`1px solid ${isAct?fc.color+"15":"rgba(255,255,255,.03)"}`,marginBottom:5 }}>
+            <div key={fc.id} style={{ display:"flex",alignItems:"center",gap:9,padding:"6px 9px",borderRadius:4,background:isAct?`${fc.color}07`:"transparent",border:`1px solid ${isAct?fc.color+"15":"rgba(255,255,255,.025)"}`,marginBottom:5 }}>
               {fc.img
                 ? <img src={fc.img} alt="" style={{width:16,height:16,objectFit:"contain",minWidth:20,filter:isAct?"none":"grayscale(1) opacity(0.3)"}}/>
                 : <span style={{ color:isAct?fc.color:`${fc.color}44`,fontSize:13,minWidth:20 }}>{fc.icon}</span>
@@ -969,7 +1272,7 @@ function BilanCycleScreen({ state, bilan, onNextCycle, onClose }) {
             { label:"XP GAGNÉ", val:state.xp||0, color },
             { label:"PROGRAMME", val:`${avgCompletion}%`, color:"#a78bfa" },
           ].map(({label,val,color:c})=>(
-            <div key={label} style={{ background:"rgba(255,255,255,.03)",border:"1px solid rgba(255,255,255,.06)",borderRadius:8,padding:"12px",textAlign:"center" }}>
+            <div key={label} style={{ background:"rgba(255,255,255,.025)",border:"1px solid rgba(255,255,255,.06)",borderRadius:8,padding:"12px",textAlign:"center" }}>
               <div style={{ color:c,fontSize:22,fontFamily:"'Orbitron',monospace",fontWeight:700 }}>{val}</div>
               <div style={{ color:"rgba(255,255,255,.2)",fontSize:7,fontFamily:"'Orbitron',monospace",letterSpacing:1,marginTop:3 }}>{label}</div>
             </div>
@@ -1102,7 +1405,7 @@ function VotesScreen({ state, onVote, onSommeil, onEnergie, onAurele, onAureleAn
           <div style={{flex:1}}><p style={{ color:"#ef4444",fontSize:9,fontFamily:"'Orbitron',monospace",marginBottom:3 }}>⚔ BOSS HEBDO</p><p style={{ color:"rgba(255,255,255,.32)",fontSize:11 }}>{boss}</p></div>
           <div style={{ display:"flex",flexDirection:"column",alignItems:"center",gap:3,marginLeft:10 }}>
             <span style={{ color:"#ef444455",fontSize:8,fontFamily:"'Orbitron',monospace" }}>+50 XP</span>
-            <button onClick={onBoss} style={{ padding:"5px 10px",borderRadius:3,background:bossJour?"rgba(239,68,68,.18)":"rgba(255,255,255,.03)",border:`1px solid ${bossJour?"#ef4444":"rgba(239,68,68,.18)"}`,color:bossJour?"#ef4444":"rgba(255,255,255,.22)",fontSize:9,cursor:"pointer",fontFamily:"'Orbitron',monospace",transition:"all .2s" }}>{bossJour?"✓":"RELEVER"}</button>
+            <button onClick={onBoss} style={{ padding:"5px 10px",borderRadius:3,background:bossJour?"rgba(239,68,68,.18)":"rgba(255,255,255,.025)",border:`1px solid ${bossJour?"#ef4444":"rgba(239,68,68,.18)"}`,color:bossJour?"#ef4444":"rgba(255,255,255,.22)",fontSize:9,cursor:"pointer",fontFamily:"'Orbitron',monospace",transition:"all .2s" }}>{bossJour?"✓":"RELEVER"}</button>
           </div>
         </div>
       </div>
@@ -1222,7 +1525,7 @@ function QuestsScreen({ state, onChangeFacette, onKryos }) {
       <div style={{ display:"flex",flexDirection:"column",gap:6 }}>
         {ach.map((a,i)=>(
           <div key={i} style={{ display:"flex",alignItems:"center",gap:10,padding:"10px 11px",background:a.done?"rgba(0,255,200,.04)":"rgba(255,255,255,.02)",border:`1px solid ${a.done?"rgba(0,255,200,.15)":"rgba(255,255,255,.04)"}`,borderRadius:6,opacity:a.done?1:.4,transition:"all .3s" }}>
-            <div style={{ width:27,height:27,borderRadius:"50%",flexShrink:0,background:a.done?"rgba(0,255,200,.1)":"rgba(255,255,255,.03)",border:`1px solid ${a.done?"rgba(0,255,200,.22)":"rgba(255,255,255,.06)"}`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:12,boxShadow:a.done?"0 0 10px rgba(0,255,200,.15)":"none" }}>{a.icon}</div>
+            <div style={{ width:27,height:27,borderRadius:"50%",flexShrink:0,background:a.done?"rgba(0,255,200,.1)":"rgba(255,255,255,.025)",border:`1px solid ${a.done?"rgba(0,255,200,.22)":"rgba(255,255,255,.06)"}`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:12,boxShadow:a.done?"0 0 10px rgba(0,255,200,.15)":"none" }}>{a.icon}</div>
             <div style={{flex:1}}>
               <p style={{ color:a.done?"#00ffcc":"rgba(255,255,255,.3)",fontSize:10,fontFamily:"'Orbitron',monospace",marginBottom:2 }}>{a.label}</p>
               <p style={{ color:"rgba(255,255,255,.16)",fontSize:9 }}>{a.desc}</p>
@@ -1273,7 +1576,7 @@ function DayCloseModal({ state, onClose, onKryos }) {
           <div style={{color:"#00ff64",fontSize:30,fontFamily:"'Orbitron',monospace",fontWeight:900,textShadow:"0 0 20px #00ff64",marginBottom:3}}>+{xpToday} XP</div>
           <p style={{color:"rgba(255,255,255,.3)",fontSize:9,fontFamily:"'Orbitron',monospace"}}>GAGNÉS AUJOURD'HUI</p>
         </div>
-        <div style={{background:"rgba(255,255,255,.03)",border:"1px solid rgba(255,255,255,.07)",borderRadius:8,padding:"10px",marginBottom:12,textAlign:"left"}}>
+        <div style={{background:"rgba(255,255,255,.025)",border:"1px solid rgba(255,255,255,.07)",borderRadius:8,padding:"10px",marginBottom:12,textAlign:"left"}}>
           <p style={{color:"rgba(255,255,255,.2)",fontSize:8,letterSpacing:3,fontFamily:"'Orbitron',monospace",marginBottom:8}}>VOTES</p>
           <div style={{display:"flex",flexDirection:"column",gap:4}}>
             {vData.map(v=>{const done=!!votes[v.label];return<div key={v.label} style={{display:"flex",alignItems:"center",gap:7}}>
@@ -1319,19 +1622,19 @@ function FeedbackScreen({ state, onSubmit }) {
   return(
     <div style={{padding:"16px 16px 0"}}>
       <p style={{color:"rgba(255,255,255,.18)",fontSize:8,letterSpacing:3,fontFamily:"'Orbitron',monospace",marginBottom:5}}>FEEDBACK TESTEUR</p>
-      <div style={{background:"rgba(255,255,255,.03)",border:"1px solid rgba(255,255,255,.07)",borderRadius:6,padding:"9px 12px",marginBottom:14}}>
+      <div style={{background:"rgba(255,255,255,.025)",border:"1px solid rgba(255,255,255,.07)",borderRadius:6,padding:"9px 12px",marginBottom:14}}>
         <p style={{color:"rgba(255,255,255,.25)",fontSize:10,fontFamily:"'Share Tech Mono',monospace"}}>
           Jour {Object.keys(state.histoire||{}).length} · Rang {getRank(state.xp||0).id} · Facette {f?.label||"—"} · {Object.values(state.votesJour||{}).filter(Boolean).length} votes aujourd'hui
         </p>
       </div>
       <div style={{display:"flex",gap:6,flexWrap:"wrap",marginBottom:13}}>
-        {cats.map(ct=>(<button key={ct.id} onClick={()=>setCat(ct.id)} style={{padding:"5px 11px",borderRadius:3,background:cat===ct.id?`${f?.color||"#00ffcc"}14`:"rgba(255,255,255,.03)",border:`1px solid ${cat===ct.id?(f?.color||"#00ffcc")+"44":"rgba(255,255,255,.07)"}`,color:cat===ct.id?(f?.color||"#00ffcc"):"rgba(255,255,255,.3)",fontSize:10,cursor:"pointer",fontFamily:"'Orbitron',monospace",transition:"all .2s"}}>{ct.l}</button>))}
+        {cats.map(ct=>(<button key={ct.id} onClick={()=>setCat(ct.id)} style={{padding:"5px 11px",borderRadius:3,background:cat===ct.id?`${f?.color||"#00ffcc"}14`:"rgba(255,255,255,.025)",border:`1px solid ${cat===ct.id?(f?.color||"#00ffcc")+"44":"rgba(255,255,255,.07)"}`,color:cat===ct.id?(f?.color||"#00ffcc"):"rgba(255,255,255,.3)",fontSize:10,cursor:"pointer",fontFamily:"'Orbitron',monospace",transition:"all .2s"}}>{ct.l}</button>))}
       </div>
       <div style={{marginBottom:13}}>
         <p style={{color:"rgba(255,255,255,.2)",fontSize:8,letterSpacing:3,fontFamily:"'Orbitron',monospace",marginBottom:7}}>NOTE</p>
         <div style={{display:"flex",gap:8}}>{[1,2,3,4,5].map(n=>(<button key={n} onClick={()=>setRating(n)} style={{fontSize:20,background:"none",border:"none",cursor:"pointer",opacity:n<=rating?1:.25,transition:"all .2s",filter:n<=rating?`drop-shadow(0 0 6px ${f?.color||"#ffd700"})`:"none"}}>✦</button>))}</div>
       </div>
-      <textarea value={text} onChange={e=>setText(e.target.value)} placeholder="Ce qui fonctionne, ce qui coince, ce qui manque..." rows={4} style={{width:"100%",padding:"10px 12px",background:"rgba(255,255,255,.03)",border:"1px solid rgba(255,255,255,.08)",borderRadius:6,color:"rgba(255,255,255,.7)",resize:"none",fontSize:12,fontFamily:"'Share Tech Mono',monospace",outline:"none",lineHeight:1.6,marginBottom:13}}/>
+      <textarea value={text} onChange={e=>setText(e.target.value)} placeholder="Ce qui fonctionne, ce qui coince, ce qui manque..." rows={4} style={{width:"100%",padding:"10px 12px",background:"rgba(255,255,255,.025)",border:"1px solid rgba(255,255,255,.08)",borderRadius:6,color:"rgba(255,255,255,.7)",resize:"none",fontSize:12,fontFamily:"'Share Tech Mono',monospace",outline:"none",lineHeight:1.6,marginBottom:13}}/>
       <button onClick={submit} style={{width:"100%",padding:"12px",background:text.trim()?`${f?.color||"#00ffcc"}12`:"rgba(255,255,255,.02)",border:`1px solid ${text.trim()?(f?.color||"#00ffcc")+"44":"rgba(255,255,255,.06)"}`,borderRadius:6,color:text.trim()?(f?.color||"#00ffcc"):"rgba(255,255,255,.2)",fontFamily:"'Orbitron',monospace",fontSize:10,letterSpacing:3,cursor:text.trim()?"pointer":"not-allowed",transition:"all .2s"}}>ENVOYER →</button>
       {(state.feedbacks||[]).length>0&&(
         <div style={{marginTop:14,background:"rgba(255,255,255,.02)",border:"1px solid rgba(255,255,255,.05)",borderRadius:8,padding:"11px 13px"}}>
@@ -1414,7 +1717,7 @@ function KryosQuestionnaire({ facetteId, onDone, onSkip }) {
       <div style={{ marginBottom:-8,zIndex:1,animation:"float 4s ease-in-out infinite" }}>
         <GemFrog color={color} size={152} mood={intro.mood||"wise"} />
       </div>
-      <div style={{ width:"100%",maxWidth:520,background:`linear-gradient(180deg,rgba(6,6,22,.98) 0%,rgba(4,4,16,1) 100%)`,
+      <div style={{ width:"100%",maxWidth:520,background:"linear-gradient(180deg,rgba(2,2,14,.99) 0%,rgba(0,0,8,1) 100%)",
         borderTop:`1px solid rgba(${rgb},.18)`,padding:"26px 22px 44px",position:"relative" }}>
         {[[true,true],[true,false],[false,true],[false,false]].map(([t,l],i)=>(
           <div key={i} style={{ position:"absolute",top:t?9:"auto",bottom:t?"auto":9,left:l?9:"auto",right:l?"auto":9,width:12,height:12,
@@ -1485,7 +1788,7 @@ function KryosQuestionnaire({ facetteId, onDone, onSkip }) {
               ) : (
                 <textarea value={answers[q.id]||""} onChange={e=>setAnswers(a=>({...a,[q.id]:e.target.value}))}
                   placeholder={q.placeholder} rows={2}
-                  style={{ width:"100%",padding:"10px 12px",background:"rgba(255,255,255,.03)",
+                  style={{ width:"100%",padding:"10px 12px",background:"rgba(255,255,255,.025)",
                     border:`1px solid ${answers[q.id]?""+color+"33":"rgba(255,255,255,.08)"}`,
                     borderRadius:4,color:"rgba(255,255,255,.7)",resize:"none",fontSize:11,
                     fontFamily:"'Share Tech Mono',monospace",outline:"none",lineHeight:1.6 }}/>
@@ -1680,7 +1983,7 @@ function ProgrammeScreen({ state, onKryos }) {
           {tabs.map(t => (
             <button key={t.id} onClick={() => setActiveTab(t.id)}
               style={{ flexShrink:0,padding:"6px 12px",borderRadius:4,cursor:"pointer",transition:"all .15s",
-                background:activeTab===t.id?`${f?.color}14`:"rgba(255,255,255,.03)",
+                background:activeTab===t.id?`${f?.color}14`:"rgba(255,255,255,.025)",
                 border:`1px solid ${activeTab===t.id?f?.color+"33":"rgba(255,255,255,.06)"}`,
                 color:activeTab===t.id?f?.color:"rgba(255,255,255,.25)",
                 fontSize:8,fontFamily:"'Orbitron',monospace",letterSpacing:1 }}>
@@ -1814,7 +2117,7 @@ function SetupScreen({ onDone, onKryos }) {
     </button>
   );
 
-  const BG = { minHeight:"100vh", background:"#04040f", padding:"26px 18px 80px",
+  const BG = { minHeight:"100vh", background:"#000008", padding:"26px 18px 80px",
     backgroundImage:`linear-gradient(rgba(0,255,200,.013) 1px,transparent 1px),linear-gradient(90deg,rgba(0,255,200,.013) 1px,transparent 1px)`,
     backgroundSize:"44px 44px" };
 
@@ -1883,7 +2186,7 @@ function SetupScreen({ onDone, onKryos }) {
                         const sel = valeurs.includes(v);
                         return (
                           <button key={v} onClick={() => tv(v)} style={{ padding:"5px 11px", borderRadius:3,
-                            background: sel ? `${cat.color}18` : "rgba(255,255,255,.03)",
+                            background: sel ? `${cat.color}18` : "rgba(255,255,255,.025)",
                             border:`1px solid ${sel ? cat.color+"55" : "rgba(255,255,255,.07)"}`,
                             color: sel ? cat.color : "rgba(255,255,255,.3)",
                             fontSize:10, cursor:"pointer", fontFamily:"'Orbitron',monospace", transition:"all .2s",
@@ -2726,7 +3029,7 @@ export default function App() {
   if(screen==="intro") return (
     <>
       <style>{CSS}</style>
-      <div style={{ minHeight:"100vh",background:"#04040f",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",padding:24,backgroundImage:`linear-gradient(rgba(0,255,200,.013) 1px,transparent 1px),linear-gradient(90deg,rgba(0,255,200,.013) 1px,transparent 1px)`,backgroundSize:"44px 44px" }}>
+      <div style={{ minHeight:"100vh",background:"#000008",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",padding:24, }}>
         <div style={{ animation:"float 5s ease-in-out infinite",marginBottom:32 }}><GemFrog color="#00ffcc" size={160} mood="wise"/></div>
         <p style={{ color:"#00ffcc",fontFamily:"'Orbitron',monospace",fontSize:22,letterSpacing:5,textShadow:"0 0 20px #00ffcc",marginBottom:6 }}>GEM VITALE</p>
         <p style={{ color:"rgba(255,255,255,.18)",fontSize:9,fontFamily:"'Orbitron',monospace",letterSpacing:4,marginBottom:36 }}>TRANSFORMATION IDENTITAIRE</p>
@@ -2755,7 +3058,7 @@ export default function App() {
       {rankNotif&&<RankNotif rank={rankNotif} onDone={()=>setRankNotif(null)}/> }
       {showDayClose&&<DayCloseModal state={state} onClose={()=>setShowDayClose(false)} onKryos={setKryos}/>}
 
-      <div style={{ background:"#04040f",minHeight:"100vh",paddingBottom:86,backgroundImage:`linear-gradient(rgba(0,255,200,.012) 1px,transparent 1px),linear-gradient(90deg,rgba(0,255,200,.012) 1px,transparent 1px)`,backgroundSize:"44px 44px" }}>
+      <div style={{ background:"#000008",minHeight:"100vh",paddingBottom:90, }}>
 
         {/* Header */}
         <div style={{ padding:"12px 18px 10px",borderBottom:"1px solid rgba(0,255,200,.06)",display:"flex",justifyContent:"space-between",alignItems:"center",background:"rgba(4,4,15,.92)",backdropFilter:"blur(20px)",position:"sticky",top:0,zIndex:50 }}>
@@ -2776,8 +3079,8 @@ export default function App() {
                 {new Date().toLocaleDateString("fr-FR",{weekday:"long",day:"numeric",month:"long"}).toUpperCase()}
               </p>
               <div style={{ display:"flex",gap:5,flexWrap:"wrap",marginBottom:11 }}>
-                {(VOTES_DATA[state.facetteId]||[]).map(v=>{ const done=!!(state.votesJour||{})[v.label]; return <div key={v.label} style={{ padding:"5px 8px",background:done?`${f?.color}10`:"rgba(255,255,255,.03)",border:`1px solid ${done?f?.color+"2a":"rgba(255,255,255,.04)"}`,borderRadius:3,fontSize:11,color:done?f?.color:"rgba(255,255,255,.18)",transition:"all .2s" }}>{v.icon} {done?"✓":"·"}</div>; })}
-                <div style={{ padding:"5px 8px",background:state.sommeilJour?"rgba(96,165,250,.09)":"rgba(255,255,255,.03)",border:`1px solid ${state.sommeilJour?"#60a5fa2a":"rgba(255,255,255,.04)"}`,borderRadius:3,fontSize:11,color:state.sommeilJour?"#60a5fa":"rgba(255,255,255,.18)" }}>🌙 {state.sommeilJour?"✓":"·"}</div>
+                {(VOTES_DATA[state.facetteId]||[]).map(v=>{ const done=!!(state.votesJour||{})[v.label]; return <div key={v.label} style={{ padding:"5px 8px",background:done?`${f?.color}10`:"rgba(255,255,255,.025)",border:`1px solid ${done?f?.color+"2a":"rgba(255,255,255,.04)"}`,borderRadius:3,fontSize:11,color:done?f?.color:"rgba(255,255,255,.18)",transition:"all .2s" }}>{v.icon} {done?"✓":"·"}</div>; })}
+                <div style={{ padding:"5px 8px",background:state.sommeilJour?"rgba(96,165,250,.09)":"rgba(255,255,255,.025)",border:`1px solid ${state.sommeilJour?"#60a5fa2a":"rgba(255,255,255,.04)"}`,borderRadius:3,fontSize:11,color:state.sommeilJour?"#60a5fa":"rgba(255,255,255,.18)" }}>🌙 {state.sommeilJour?"✓":"·"}</div>
               </div>
               <button onClick={()=>setTab("votes")} style={{ width:"100%",padding:"10px",background:`${f?.color}07`,border:`1px solid ${f?.color}1e`,borderRadius:5,color:f?.color,fontFamily:"'Orbitron',monospace",fontSize:9,letterSpacing:3,cursor:"pointer",transition:"all .2s" }}>VOIR LES VOTES DU JOUR →</button>
             </div>
@@ -2793,15 +3096,22 @@ export default function App() {
         {showQuestionnaire&&<KryosQuestionnaire facetteId={state.facetteId} onDone={handleQuestionnaireSubmit} onSkip={()=>{setShowQuestionnaire(false);handleGenererProgramme({});}} />}
 
         {/* Bottom nav */}
-        <div style={{ position:"fixed",bottom:0,left:0,right:0,background:"rgba(4,4,15,.97)",borderTop:"1px solid rgba(0,255,200,.06)",display:"flex",justifyContent:"space-around",padding:"9px 0 20px",backdropFilter:"blur(24px)",zIndex:100 }}>
-          {TABS.map(t=>{ const active=tab===t.id; const ac=active?(f?.color||"#00ffcc"):"rgba(255,255,255,.18)"; return (
-            <button key={t.id} onClick={()=>setTab(t.id)} style={{ display:"flex",flexDirection:"column",alignItems:"center",gap:3,background:"none",border:"none",cursor:"pointer",padding:"4px 18px" }}>
-              {t.img
-                ? <img src={t.img} alt="" style={{width:18,height:18,objectFit:"contain",filter:active?`drop-shadow(0 0 4px ${ac})`:"grayscale(1) opacity(0.4)",transition:"all .2s"}}/>
-                : <span style={{ fontSize:14,color:ac,textShadow:active?`0 0 12px ${ac}`:"none",transition:"all .2s" }}>{t.icon}</span>
-              }
-              <span style={{ fontSize:7,color:ac,fontFamily:"'Orbitron',monospace",letterSpacing:2,transition:"all .2s" }}>{t.label}</span>
-              {active&&<div style={{ width:16,height:1,background:ac,boxShadow:`0 0 4px ${ac}`,borderRadius:1 }}/>}
+        <div className="tab-bar" style={{"--fc":f?.color||"#00ffcc"}}>
+          {TABS.map(t=>{ const active=tab===t.id; const ac=active?(f?.color||"#00ffcc"):"rgba(255,255,255,.22)"; return (
+            <button key={t.id} onClick={()=>setTab(t.id)} className={`tab-btn${active?" active":""}`}>
+              <div style={{width:32,height:32,display:"flex",alignItems:"center",justifyContent:"center",
+                borderRadius:8,transition:"all .2s",
+                background:active?`rgba(${f?.rgb||"0,255,204"},.1)`:"transparent",
+                border:active?`1px solid rgba(${f?.rgb||"0,255,204"},.2)`:"1px solid transparent",
+                boxShadow:active?`0 0 10px rgba(${f?.rgb||"0,255,204"},.15)`:"none"}}>
+                {t.img
+                  ? <img src={t.img} alt="" style={{width:20,height:20,objectFit:"contain",
+                      filter:active?`drop-shadow(0 0 5px ${ac})`:"grayscale(1) opacity(0.35)",transition:"all .2s"}}/>
+                  : <span style={{fontSize:16,color:ac,textShadow:active?`0 0 10px ${ac}`:"none",transition:"all .2s"}}>{t.icon}</span>
+                }
+              </div>
+              <span className="tab-label" style={{color:ac}}>{t.label}</span>
+              {active&&<div style={{width:20,height:1.5,background:ac,boxShadow:`0 0 6px ${ac}`,borderRadius:1,marginTop:1}}/>}
             </button>
           ); })}
         </div>
