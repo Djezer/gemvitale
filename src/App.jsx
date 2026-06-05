@@ -1368,9 +1368,53 @@ function VotesScreen({ state, onVote, onSommeil, onEnergie, onAurele, onAureleAn
         </div>
       </div>
       </div>}
-      <div style={{padding:"0 16px 16px"}}>
-        <button onClick={onDayClose} style={{width:"100%",marginTop:14,padding:"13px",background:"rgba(167,139,250,.08)",border:"1px solid rgba(167,139,250,.3)",borderRadius:6,color:"#a78bfa",fontFamily:"'Orbitron',monospace",fontSize:10,letterSpacing:3,cursor:"pointer",transition:"all .2s"}}>✦ SCELLER LA JOURNÉE</button>
-      </div>
+      {(() => {
+        const allVoted = vData.length > 0 && vData.every(v => !!votesJour[v.label]);
+        const someVoted = doneCount > 0;
+        return (
+          <div style={{padding:"0 16px 16px"}}>
+            {/* Progress indicator */}
+            {!allVoted && someVoted && (
+              <div style={{marginTop:14,marginBottom:8,display:"flex",alignItems:"center",gap:8}}>
+                <div style={{flex:1,height:2,background:"rgba(255,255,255,.05)",borderRadius:1}}>
+                  <div style={{height:"100%",width:`${doneCount/vData.length*100}%`,background:`linear-gradient(90deg,${f?.color}66,${f?.color})`,borderRadius:1,transition:"width .4s"}}/>
+                </div>
+                <span style={{color:"rgba(255,255,255,.25)",fontSize:8,fontFamily:"'Orbitron',monospace",whiteSpace:"nowrap"}}>{doneCount}/{vData.length} votes</span>
+              </div>
+            )}
+            <button
+              onClick={allVoted ? onDayClose : undefined}
+              disabled={!allVoted}
+              style={{
+                width:"100%",
+                marginTop:allVoted||!someVoted?14:0,
+                padding:"13px",
+                borderRadius:6,
+                fontFamily:"'Orbitron',monospace",
+                fontSize:10,
+                letterSpacing:3,
+                transition:"all .3s",
+                cursor:allVoted?"pointer":"not-allowed",
+                background:allVoted
+                  ?"linear-gradient(135deg,rgba(167,139,250,.15),rgba(167,139,250,.08))"
+                  :"rgba(255,255,255,.02)",
+                border:allVoted
+                  ?"1px solid rgba(167,139,250,.5)"
+                  :"1px solid rgba(255,255,255,.05)",
+                color:allVoted?"#a78bfa":"rgba(255,255,255,.15)",
+                boxShadow:allVoted?"0 0 20px rgba(167,139,250,.15),inset 0 0 10px rgba(167,139,250,.05)":"none",
+                opacity:allVoted?1:0.5,
+              }}>
+              {allVoted ? "✦ SCELLER LA JOURNÉE" : `🔒 ${vData.length - doneCount} VOTE${vData.length - doneCount > 1 ? "S" : ""} RESTANT`}
+            </button>
+            {!allVoted && !someVoted && (
+              <p style={{textAlign:"center",marginTop:6,color:"rgba(255,255,255,.1)",fontSize:8,fontFamily:"'Share Tech Mono',monospace"}}>
+                Coche tous tes votes pour sceller la journée
+              </p>
+            )}
+          </div>
+        );
+      })()}
     </div>
   );
 }
