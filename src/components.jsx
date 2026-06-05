@@ -1806,8 +1806,3 @@ export function SetupScreen({ onDone, onKryos }) {
     </div>
   );
 }
-
-// ═══════════════════════════════════════════════════════════
-// MAIN APP
-// ═══════════════════════════════════════════════════════════
-const getKryosDaily = (facetteId) => {
