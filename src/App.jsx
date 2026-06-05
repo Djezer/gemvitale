@@ -1309,7 +1309,6 @@ function VotesScreen({ state, onVote, onSommeil, onEnergie, onAurele, onAureleAn
             <p style={{color:"rgba(255,255,255,.2)",fontSize:8,fontFamily:"'Share Tech Mono',monospace",marginTop:1}}>Reviens demain pour voter</p>
           </div>
         </div>
-      </div>
       )}
       {/* Timers — toujours visibles */}
       <div style={{display:"flex",gap:8,marginBottom:10,flexWrap:"wrap"}}>
