@@ -45,7 +45,7 @@ const FACETTES = [
   { id:"createur",     label:"Créateur",     icon:"✦",  img:"/kryos-createur.png", color:"#ff6eb4", rgb:"255,110,180", stat:"CRE", desc:"Vision manifestée, art vivant" },
   { id:"entrepreneur", label:"Entrepreneur", icon:"◈",  img:"/kryos-entrepreneur.png", color:"#ffd700", rgb:"255,215,0",   stat:"STR", desc:"Empire bâti, richesse créée" },
   { id:"sage",         label:"Sage",         icon:"◎",  img:"/kryos-sage.png", color:"#a78bfa", rgb:"167,139,250", stat:"INT", desc:"Sagesse profonde, paix intérieure" },
-  { id:"explorateur",  label:"Explorateur",  icon:"✧",  color:"#38bdf8", rgb:"56,189,248",  stat:"AGI", desc:"Horizons repoussés, vie vécue" },
+  { id:"explorateur",  label:"Explorateur",  icon:"✧",  img:"/kryos-explorateur.png", color:"#38bdf8", rgb:"56,189,248",  stat:"AGI", desc:"Horizons repoussés, vie vécue" },
   { id:"guerrier",     label:"Guerrier",     icon:"⚔",  color:"#f97316", rgb:"249,115,22",  stat:"FOR", desc:"Mental d'acier, résilience totale" },
 ];
 const VOTES_DATA = {
