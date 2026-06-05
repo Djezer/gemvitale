@@ -954,9 +954,12 @@ function BilanCycleScreen({ state, bilan, onNextCycle, onClose }) {
         <p style={{ color:`rgba(${rgb},.3)`,fontSize:9,fontFamily:"'Orbitron',monospace",letterSpacing:6,marginBottom:20,animation:"pulse 2s infinite" }}>
           CYCLE {state.cycleNum||1} — TERMINÉ
         </p>
-        <div style={{ fontSize:96,marginBottom:16,animation:"float 3s ease-in-out infinite",
+        <div style={{ marginBottom:16,animation:"float 3s ease-in-out infinite",
           filter:`drop-shadow(0 0 40px ${color}) drop-shadow(0 0 80px ${color}44)` }}>
-          {f?.icon}
+          {f?.img
+            ? <img src={f.img} alt={f?.label} style={{width:110,height:110,objectFit:"contain"}}/>
+            : <span style={{fontSize:96}}>{f?.icon}</span>
+          }
         </div>
         <div style={{ color:rank.color,fontSize:64,fontFamily:"'Orbitron',monospace",fontWeight:900,
           textShadow:`0 0 40px ${rank.color},0 0 80px ${rank.color}44`,animation:"rankUp .6s ease .3s both" }}>
@@ -2783,7 +2786,7 @@ export default function App() {
     </>
   );
 
-  const TABS=[{id:"facette",label:"FACETTE",icon:f?.img?null:(f?.icon||"◈"),img:f?.img},{id:"votes",label:"VOTES",icon:"⚔"},{id:"programme",label:"PROG.",icon:"📋"},{id:"profil",label:"PROFIL",icon:"◎"},{id:"quetes",label:"QUÊTES",icon:"✦"},{id:"retour",label:"RETOUR",icon:"◇"}];
+  const TABS=[{id:"facette",label:"FACETTE",icon:f?.icon||"◈",img:f?.img},{id:"votes",label:"VOTES",icon:"⚔"},{id:"programme",label:"PROG.",icon:"📋"},{id:"profil",label:"PROFIL",icon:"◎"},{id:"quetes",label:"QUÊTES",icon:"✦"},{id:"retour",label:"RETOUR",icon:"◇"}];
 
   return (
     <>
@@ -2834,7 +2837,10 @@ export default function App() {
         <div style={{ position:"fixed",bottom:0,left:0,right:0,background:"rgba(4,4,15,.97)",borderTop:"1px solid rgba(0,255,200,.06)",display:"flex",justifyContent:"space-around",padding:"9px 0 20px",backdropFilter:"blur(24px)",zIndex:100 }}>
           {TABS.map(t=>{ const active=tab===t.id; const ac=active?(f?.color||"#00ffcc"):"rgba(255,255,255,.18)"; return (
             <button key={t.id} onClick={()=>setTab(t.id)} style={{ display:"flex",flexDirection:"column",alignItems:"center",gap:3,background:"none",border:"none",cursor:"pointer",padding:"4px 18px" }}>
-              <span style={{ fontSize:14,color:ac,textShadow:active?`0 0 12px ${ac}`:"none",transition:"all .2s" }}>{t.icon}</span>
+              {t.img
+                ? <img src={t.img} alt="" style={{width:18,height:18,objectFit:"contain",filter:active?`drop-shadow(0 0 4px ${ac})`:"grayscale(1) opacity(0.4)",transition:"all .2s"}}/>
+                : <span style={{ fontSize:14,color:ac,textShadow:active?`0 0 12px ${ac}`:"none",transition:"all .2s" }}>{t.icon}</span>
+              }
               <span style={{ fontSize:7,color:ac,fontFamily:"'Orbitron',monospace",letterSpacing:2,transition:"all .2s" }}>{t.label}</span>
               {active&&<div style={{ width:16,height:1,background:ac,boxShadow:`0 0 4px ${ac}`,borderRadius:1 }}/>}
             </button>
