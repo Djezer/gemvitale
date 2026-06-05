@@ -46,7 +46,7 @@ const FACETTES = [
   { id:"entrepreneur", label:"Entrepreneur", icon:"◈",  img:"/kryos-entrepreneur.png", color:"#ffd700", rgb:"255,215,0",   stat:"STR", desc:"Empire bâti, richesse créée" },
   { id:"sage",         label:"Sage",         icon:"◎",  img:"/kryos-sage.png", color:"#a78bfa", rgb:"167,139,250", stat:"INT", desc:"Sagesse profonde, paix intérieure" },
   { id:"explorateur",  label:"Explorateur",  icon:"✧",  img:"/kryos-explorateur.png", color:"#38bdf8", rgb:"56,189,248",  stat:"AGI", desc:"Horizons repoussés, vie vécue" },
-  { id:"guerrier",     label:"Guerrier",     icon:"⚔",  color:"#f97316", rgb:"249,115,22",  stat:"FOR", desc:"Mental d'acier, résilience totale" },
+  { id:"guerrier",     label:"Guerrier",     icon:"⚔",  img:"/kryos-guerrier.png", color:"#f97316", rgb:"249,115,22",  stat:"FOR", desc:"Mental d'acier, résilience totale" },
 ];
 const VOTES_DATA = {
   athlete:      [{label:"Séance de sport",      xp:15,icon:"⚡"},{label:"Sommeil 8h",          xp:10,icon:"🌙"},{label:"Repas sain",          xp:8,icon:"🍃"},{label:"Hydratation 2L",      xp:5,icon:"💧"},{label:"Mobilité / stretch",  xp:7,icon:"🔥"}],
