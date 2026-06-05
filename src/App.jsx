@@ -41,7 +41,7 @@ const getNextGlobalRank = (facettesState={}) => {
   return GLOBAL_RANKS.find(r => r.minScore > score);
 };
 const FACETTES = [
-  { id:"athlete",      label:"Athlète",      icon:"⚡", color:"#00ffcc", rgb:"0,255,204",   stat:"VIT", desc:"Corps forgé, énergie maîtrisée" },
+  { id:"athlete",      label:"Athlète",      icon:"⚡", img:"/kryos-athlete.png", color:"#00ffcc", rgb:"0,255,204",   stat:"VIT", desc:"Corps forgé, énergie maîtrisée" },
   { id:"createur",     label:"Créateur",     icon:"✦",  color:"#ff6eb4", rgb:"255,110,180", stat:"CRE", desc:"Vision manifestée, art vivant" },
   { id:"entrepreneur", label:"Entrepreneur", icon:"◈",  color:"#ffd700", rgb:"255,215,0",   stat:"STR", desc:"Empire bâti, richesse créée" },
   { id:"sage",         label:"Sage",         icon:"◎",  color:"#a78bfa", rgb:"167,139,250", stat:"INT", desc:"Sagesse profonde, paix intérieure" },
@@ -569,8 +569,14 @@ function FacetteHUD({ f, fRank, fXP, streak, identite, joursFaits, kryosDaily })
     <div style={{ position:"relative",width:"100%",overflow:"hidden" }}>
 
       <div style={{ position:"relative",zIndex:1,textAlign:"center",padding:"36px 0 16px" }}>
-        <div style={{ fontSize:68,lineHeight:1,"--c":f.color,animation:"glowP 3s ease-in-out infinite",
-          filter:`drop-shadow(0 0 18px ${f.color}) drop-shadow(0 0 36px ${f.color}44)` }}>{f.icon}</div>
+        {f.img ? (
+          <img src={f.img} alt={f.label} style={{ width:88,height:88,objectFit:"contain",
+            filter:`drop-shadow(0 0 18px ${f.color}) drop-shadow(0 0 36px ${f.color}44)`,
+            animation:"floatGem 4s ease-in-out infinite" }}/>
+        ) : (
+          <div style={{ fontSize:68,lineHeight:1,"--c":f.color,animation:"glowP 3s ease-in-out infinite",
+            filter:`drop-shadow(0 0 18px ${f.color}) drop-shadow(0 0 36px ${f.color}44)` }}>{f.icon}</div>
+        )}
         <div style={{ marginTop:10,color:f.color,fontFamily:"'Orbitron',monospace",fontSize:19,fontWeight:900,letterSpacing:4,
           textShadow:`0 0 18px ${f.color},0 0 36px ${f.color}44` }}>{f.label.toUpperCase()}</div>
         <div style={{ color:"rgba(255,255,255,.28)",fontSize:10,fontFamily:"'Orbitron',monospace",letterSpacing:2,marginTop:4 }}>{identite}</div>
@@ -1114,7 +1120,8 @@ function VotesScreen({ state, onVote, onSommeil, onEnergie, onAurele, onAureleAn
                 border:`1px solid ${votesTab===t.id?f?.color+"33":"rgba(255,255,255,.05)"}`,
                 color:votesTab===t.id?f?.color:"rgba(255,255,255,.2)",
                 fontSize:8,fontFamily:"'Orbitron',monospace",letterSpacing:1 }}>
-              {t.icon} {t.label}
+              {t.img ? <img src={t.img} alt="" style={{width:14,height:14,objectFit:"contain",verticalAlign:"middle",marginRight:3,filter:`drop-shadow(0 0 3px ${f?.color})`}}/> : (t.icon ? t.icon+" " : "")}
+              {t.label}
             </button>
           ))}
         </div>
@@ -1715,7 +1722,8 @@ function ProgrammeScreen({ state, onKryos }) {
                 border:`1px solid ${activeTab===t.id?f?.color+"33":"rgba(255,255,255,.06)"}`,
                 color:activeTab===t.id?f?.color:"rgba(255,255,255,.25)",
                 fontSize:8,fontFamily:"'Orbitron',monospace",letterSpacing:1 }}>
-              {t.icon} {t.label}
+              {t.img ? <img src={t.img} alt="" style={{width:14,height:14,objectFit:"contain",verticalAlign:"middle",marginRight:3,filter:`drop-shadow(0 0 3px ${f?.color})`}}/> : (t.icon ? t.icon+" " : "")}
+              {t.label}
             </button>
           ))}
         </div>
@@ -2172,626 +2180,225 @@ const KRYOS_PROGRAMME_INTRO = {
 // ═══════════════════════════════════════════════════════════
 // API ANTHROPIC — génération programme IA
 // ═══════════════════════════════════════════════════════════
-// PROGRAMME_TEMPLATE — fallback de base (avant questionnaire)
-// ═══════════════════════════════════════════════════════════
-const PROGRAMME_TEMPLATE = {
-  athlete:      { sport:["3x musculation/semaine","2x cardio 30min","1x mobilité/yoga"], lectures:["Atomic Habits — James Clear","Can't Hurt Me — David Goggins","The Champion's Mind — Jim Afremow"], habitudes:["Lever à heure fixe","Protéine à chaque repas","Pas d'écran 1h avant le lit"], emploi_du_temps:["Lun: Muscu AM","Mar: Cardio 30min","Mer: Repos actif","Jeu: Muscu AM","Ven: Cardio + mobilité","Sam: Muscu","Dim: Récupération"] },
-  createur:     { sport:["2x marche créative 45min","1x yoga flow","Étirements 10min/jour"], lectures:["The War of Art — Pressfield","Big Magic — Gilbert","Steal Like an Artist — Kleon"], habitudes:["Créer avant de consommer","Carnet d'idées toujours avec soi","Publier 1x/sem"], emploi_du_temps:["Lun: Création AM","Mar: Publier quelque chose","Mer: Lecture + carnet","Jeu: Création AM","Ven: Feedback + itérer","Sam: Projet libre","Dim: Recharge créative"] },
-  entrepreneur: { sport:["2x sport 45min","Marche 20min/jour","Sport = clarté mentale"], lectures:["Zero to One — Thiel","The Lean Startup — Ries","$100M Offers — Hormozi"], habitudes:["MIT (Most Important Task) le matin","Revue métriques quotidienne","Pas de réseaux avant 10h"], emploi_du_temps:["Lun: Planning + MIT","Mar: Prospection","Mer: Opérationnel","Jeu: Apprentissage","Ven: Revue métriques","Sam: Projet stratégique","Dim: Déconnexion"] },
-  sage:         { sport:["1x yoga 1h","Marche méditative 30min/jour","Respiration 5min matin"], lectures:["Méditations — Marc Aurèle","The Power of Now — Tolle","Man's Search for Meaning — Frankl"], habitudes:["Méditation 20min matin","Journaling 15min soir","Silence intentionnel 30min/jour"], emploi_du_temps:["Lun: Méditation + intention","Mar: Lecture profonde","Mer: Journaling","Jeu: Temps en nature","Ven: Réflexion semaine","Sam: Pratique contemplative","Dim: Silence"] },
-  explorateur:  { sport:["Sport en plein air 3x/sem","1 nouvelle activité/mois","Randonnée mensuelle"], lectures:["Into the Wild — Krakauer","The Alchemist — Coelho","Vagabonding — Potts"], habitudes:["1 nouvelle chose/semaine","Documenter ses expériences","Dire oui avant non"], emploi_du_temps:["Lun: Planifier aventure semaine","Mar: Sortir de la routine","Mer: Explorer localement","Jeu: Nouvelle compétence","Ven: Rencontre humaine","Sam: Grande aventure","Dim: Documenter + intégrer"] },
-  guerrier:     { sport:["4x entraînement intense","1x défi physique extrême/sem","Douche froide quotidienne"], lectures:["Extreme Ownership — Willink","The Obstacle is the Way — Holiday","12 Rules for Life — Peterson"], habitudes:["1 chose difficile/jour intentionnellement","Pas d'excuses","Journaling guerre intérieure"], emploi_du_temps:["Lun: Défi mental AM","Mar: Entraînement intense","Mer: Confronter une peur","Jeu: Entraînement + résistance","Ven: Défi social","Sam: Épreuve physique","Dim: Bilan de guerre"] },
+// Clé Gemini — stockée en variable d'environnement Vite (préfixe VITE_)
+const GEMINI_KEY = import.meta.env.VITE_GEMINI_API_KEY || "";
+
+const callClaude = async (prompt) => {
+  // ── Gemini direct (gratuit) ──
+  if (GEMINI_KEY) {
+    try {
+      const models = ["gemini-2.0-flash", "gemini-1.5-flash"];
+      for (const model of models) {
+        const res = await fetch(
+          `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`,
+          {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "x-goog-api-key": GEMINI_KEY,
+            },
+            body: JSON.stringify({
+              contents: [{ parts: [{ text: prompt }] }],
+              generationConfig: { maxOutputTokens: 1500, temperature: 0.7 },
+            }),
+          }
+        );
+        const data = await res.json();
+        if (data?.error) continue;
+        const text = data?.candidates?.[0]?.content?.parts?.[0]?.text;
+        if (text) return text;
+      }
+    } catch (e) {
+      console.error("Gemini error:", e);
+    }
+  }
+  // ── Fallback: proxy Claude ──
+  try {
+    const res = await fetch("/api/claude", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        model: "claude-haiku-4-5-20251001",
+        max_tokens: 1000,
+        messages: [{ role: "user", content: prompt }],
+      }),
+    });
+    const data = await res.json();
+    return data.content?.[0]?.text || null;
+  } catch (e) {
+    return null;
+  }
 };
 
+const buildAthletePrompt = (valeurs, identite, answers) => {
+  const a = answers || {};
+  return `Tu es un coach sportif expert en transformation physique et identitaire. Génère un programme de cycle (15 jours) complet et structuré, similaire à un vrai document de coaching.
 
-const PROGRAMMES = {
-  athlete: [
-    {
-      id: "A1",
-      profil: "Débutant · Perte de poids · 3x/sem",
-      match: a => a.niveau?.includes("Débutant") && a.objectif?.includes("Perdre") && ["2 séances","3 séances"].includes(a.seances),
-      titre_cycle: "CYCLE 1 — REPRISE & RECOMPOSITION",
-      objectif_cycle: "Installer la régularité, créer le déficit calorique, -1 à -2kg en 15j",
-      sport: [
-        "Séance A (Lun/Jeu) — Circuit full body: Squat 3×15, Pompes 3×10, Rowing haltères 3×12, Planche 3×30s",
-        "Séance B (Sam) — Cardio 30min: marche rapide ou vélo à 70% FCmax — finir aussi frais qu'au départ",
-        "Règle d'or: ne jamais aller à l'échec — s'arrêter 2 reps avant. Progresser quand les séries sont propres",
-        "Échauffement obligatoire: 5min vélo/rameur + 1 série légère avant chaque exercice",
-      ],
-      lectures: [
-        "Atomic Habits — James Clear (construire la régularité, pas la motivation)",
-        "The Body Fat Solution — Tom Venuto (recomposition sans obsession calorique)",
-        "Born to Run — Christopher McDougall (retrouver le plaisir du mouvement)",
-      ],
-      habitudes: [
-        "~130g de protéines/jour — une grosse source à chaque repas (paume de main = portion)",
-        "Règle de l'assiette: ½ légumes, ¼ protéine, ¼ féculents — moins de féculents les jours sans sport",
-        "Pesée 3x/sem le matin — piloter sur la moyenne hebdo, cible -0.3 à -0.5kg/sem",
-        "Marche 20-30min les jours sans séance — ça compte dans le bilan calorique",
-      ],
-      planning: [
-        "Lun: Séance A (45min) — circuit full body",
-        "Mar: Marche 25min + repas structuré",
-        "Mer: Repos actif — mobilité 15min ou marche",
-        "Jeu: Séance A (45min) — même circuit, tenter de progresser",
-        "Ven: Marche 30min + préparation repas semaine suivante",
-        "Sam: Séance B (30min cardio)",
-        "Dim: Repos total — récupération prioritaire",
-      ],
-      non_negotiables: [
-        "3 séances minimum, pas de semaine blanche quelle que soit la raison",
-        "130g de protéines chaque jour — c'est le levier anti-fonte musculaire",
-        "Pas de pesée quotidienne — seulement lundi/mercredi/vendredi matin",
-        "Finir les footings aussi frais qu'au départ — lenteur = entraînement",
-        "Dormir 7h minimum les nuits avant séance",
-      ],
-    },
-    {
-      id: "A2",
-      profil: "Débutant · Prise de masse · Salle complète",
-      match: a => a.niveau?.includes("Débutant") && a.objectif?.includes("masse") && a.lieu?.includes("Salle"),
-      titre_cycle: "CYCLE 1 — FONDATIONS MUSCULAIRES",
-      objectif_cycle: "Maîtriser les mouvements de base, créer le surplus calorique, poser les fondations",
-      sport: [
-        "Séance A Push (Lun/Jeu) — Développé couché 3×8-10, Développé épaules 3×10, Dips ou pompes lestées 3×10, Triceps poulie 3×12",
-        "Séance B Pull (Mar/Ven) — Tirage vertical 3×8-10, Rowing barre 3×8-10, Curl biceps 3×12, Face pull 3×15",
-        "Séance C Jambes (Mer ou Sam) — Squat 3×10, Presse 3×12, Leg curl 3×12, Mollets 4×15",
-        "Règle d'or: technique parfaite avant d'augmenter la charge — film-toi pour vérifier",
-      ],
-      lectures: [
-        "Starting Strength — Mark Rippetoe (bible des mouvements de base pour débutant)",
-        "The New Encyclopedia of Modern Bodybuilding — Arnold (vision complète de la musculation)",
-        "Bigger Leaner Stronger — Michael Matthews (programme scientifique pour débutant)",
-      ],
-      habitudes: [
-        "~160g de protéines/jour — whey post-séance si difficile d'atteindre l'objectif",
-        "Surplus calorique de 300-400 kcal les jours de séance seulement",
-        "Manger dans les 30-60min après la séance — fenêtre anabolique réelle",
-        "Dormir 8h minimum — c'est pendant le sommeil que les muscles se construisent",
-      ],
-      planning: [
-        "Lun: Séance A Push — haut du corps",
-        "Mar: Séance B Pull — dos et biceps",
-        "Mer: Séance C Jambes",
-        "Jeu: Repos ou cardio léger 20min",
-        "Ven: Séance A Push — progression sur les charges",
-        "Sam: Séance B Pull",
-        "Dim: Repos total — sortie, marche, récupération",
-      ],
-      non_negotiables: [
-        "4 séances minimum par semaine — la fréquence est le principal levier débutant",
-        "160g de protéines chaque jour sans exception",
-        "Jamais à l'échec les 4 premières semaines — technique d'abord",
-        "Augmenter la charge seulement quand les séries sont propres sur toute la fourchette",
-        "8h de sommeil — c'est une séance à part entière",
-      ],
-    },
-    {
-      id: "A3",
-      profil: "Intermédiaire · Recomposition · 4-5x/sem",
-      match: a => a.niveau?.includes("Intermédiaire") && (a.objectif?.includes("recomposition") || a.objectif?.includes("Perdre")) && ["4 séances","5 séances"].includes(a.seances),
-      titre_cycle: "CYCLE 1 — RECOMPOSITION INTERMÉDIAIRE",
-      objectif_cycle: "Maintenir la masse musculaire, réduire la graisse, améliorer la définition",
-      sport: [
-        "Séance Push — Développé couché 4×6-8, Développé incliné 3×10, Épaules 3×10, Triceps 3×12",
-        "Séance Pull — Tractions 4×6-8, Rowing haltères 3×10, Biceps 3×12, Face pull 3×15",
-        "Séance Jambes — Squat 4×6-8, Soulevé de terre roumain 3×10, Fentes 3×12, Mollets 4×15",
-        "Cardio HIIT 2x/sem — 20min max: 30s effort intense / 30s récup × 10 rounds",
-      ],
-      lectures: [
-        "Burn the Fat, Feed the Muscle — Tom Venuto (recomposition scientifique)",
-        "The Lean Muscle Diet — Lou Schuler (alimentation ciblée pour la recomposition)",
-        "Can't Hurt Me — David Goggins (mental pour maintenir l'intensité sur la durée)",
-      ],
-      habitudes: [
-        "~180g de protéines/jour — maintenir la masse en déficit calorique modéré",
-        "Déficit de 300 kcal les jours sans sport, maintenance les jours de séance lourde",
-        "Mesures corporelles 1x/sem — tour de taille + photos: meilleur indicateur que la balance",
-        "Pas d'alcool en semaine — 400 kcal vides qui sabotent la recomposition",
-      ],
-      planning: [
-        "Lun: Push lourd",
-        "Mar: Pull + HIIT 20min",
-        "Mer: Repos actif — marche ou mobilité",
-        "Jeu: Jambes lourd",
-        "Ven: Push + HIIT 20min",
-        "Sam: Pull léger / pump",
-        "Dim: Repos total",
-      ],
-      non_negotiables: [
-        "180g de protéines/jour — le levier anti-catabolisme numéro 1",
-        "HIIT 2x maximum — pas plus, risque de surentraînement en déficit",
-        "Mesures 1x/sem pas plus — la balance quotidienne rend fou",
-        "Progresser sur au moins 1 exercice par semaine — sinon c'est du cardio déguisé",
-        "Dormir 7-8h — le cortisol détruit la recomposition",
-      ],
-    },
-    {
-      id: "A4",
-      profil: "Intermédiaire · Performance running",
-      match: a => a.niveau?.includes("Intermédiaire") && a.objectif?.includes("performances"),
-      titre_cycle: "CYCLE 1 — BASE AÉROBIE & RENFORCEMENT",
-      objectif_cycle: "Construire le moteur aérobie, renforcer les appuis, prévenir les blessures",
-      sport: [
-        "Footings EF 4x/sem — 100% endurance fondamentale à ~75% FCmax, allure confortable",
-        "Séance muscu A (Lun) — Squat 3×10, Hip thrust 3×12, Gainage 3×45s, Mollets 4×15",
-        "Séance muscu B (Jeu) — Fentes 3×12, Soulevé de terre roumain 3×10, Step-up 3×12",
-        "1 sortie longue/sem (Dim) — 15-20min de plus que la semaine précédente, allure EF",
-      ],
-      lectures: [
-        "80/20 Running — Matt Fitzgerald (la règle d'or de l'entraînement en endurance)",
-        "Born to Run — Christopher McDougall (retrouver la mécanique naturelle)",
-        "The Runner's Body — Ross Tucker (physiologie du coureur expliquée simplement)",
-      ],
-      habitudes: [
-        "~150g de protéines/jour — protéger le muscle en volume de course",
-        "Glucides avant la sortie longue — pain complet, flocons d'avoine, banane",
-        "Mobilité hanche + cheville 10min après chaque footing",
-        "Carnet de bord: noter allure, cardio, ressenti après chaque sortie",
-      ],
-      planning: [
-        "Lun: Footing EF 30min + muscu A",
-        "Mar: Footing EF 25min",
-        "Mer: Repos ou marche active",
-        "Jeu: Footing EF 30min + muscu B",
-        "Ven: Footing EF court 20min",
-        "Sam: Repos — préparation sortie longue",
-        "Dim: Sortie longue EF",
-      ],
-      non_negotiables: [
-        "100% EF sur les footings — aucune séance 'parce que j'ai de l'énergie'",
-        "Muscu 2x/sem minimum — le renforcement prévient 80% des blessures",
-        "Mobilité après chaque sortie — 10min qui changent tout sur la durée",
-        "Augmenter le volume de max 10% par semaine",
-        "Dormir 7-8h — la récupération est l'entraînement",
-      ],
-    },
-    {
-      id: "A5",
-      profil: "Avancé · Force · Salle complète",
-      match: a => (a.niveau?.includes("Avancé") || a.niveau?.includes("Compétiteur")) && a.objectif?.includes("performances") && a.lieu?.includes("Salle"),
-      titre_cycle: "CYCLE 1 — FORCE MAXIMALE",
-      objectif_cycle: "Progresser sur les lifts principaux, atteindre de nouveaux maxima",
-      sport: [
-        "Séance A Squat/Push (Lun) — Squat 5×5 (85%RM), Développé couché 4×5, Dips lestés 3×8",
-        "Séance B Deadlift/Pull (Mer) — Soulevé de terre 4×4 (87%RM), Tractions lestées 4×6, Rowing barre 3×8",
-        "Séance C Overhead/Accessoires (Ven) — Développé militaire 4×5, Squat frontal 3×6, Accessoires",
-        "Jamais deux séances lourdes dos-à-dos — minimum 48h entre chaque",
-      ],
-      lectures: [
-        "Practical Programming — Rippetoe & Kilgore (programmation force avancée)",
-        "The Science and Practice of Strength Training — Zatsiorsky (approche scientifique)",
-        "Extreme Ownership — Jocko Willink (mental pour maintenir l'intensité)",
-      ],
-      habitudes: [
-        "~200g de protéines/jour — masse musculaire élevée = besoins élevés",
-        "Surplus calorique modéré 200-300 kcal — gain de force pur, pas de masse excessive",
-        "Journal de séance obligatoire — noter chaque charge, chaque rep, chaque sensation",
-        "Cryothérapie ou bain froid après séance lourde — inflammation maîtrisée",
-      ],
-      planning: [
-        "Lun: Séance A — Squat + Push lourd",
-        "Mar: Repos actif — cardio léger 20min ou mobilité",
-        "Mer: Séance B — Deadlift + Pull lourd",
-        "Jeu: Repos — récupération complète",
-        "Ven: Séance C — Overhead + accessoires",
-        "Sam: Repos ou sport plaisir",
-        "Dim: Repos total — préparation semaine suivante",
-      ],
-      non_negotiables: [
-        "Suivre le programme — pas d'improvisation sur les charges ou exercices",
-        "200g de protéines chaque jour",
-        "Journal de séance rempli à chaque entraînement",
-        "Dormir 8h — les adaptations neuromusculaires se font la nuit",
-        "Déload toutes les 4 semaines — 60% des charges, volume réduit",
-      ],
-    },
-    {
-      id: "A6",
-      profil: "Contrainte physique · Remise en forme douce",
-      match: a => a.contrainte && !a.contrainte.includes("Aucune"),
-      titre_cycle: "CYCLE 1 — REMISE EN FORME ADAPTÉE",
-      objectif_cycle: "Retrouver la mobilité, renforcer sans aggraver, installer une routine durable",
-      sport: [
-        "Séance A (Lun/Jeu) — Travail adapté: exercices sans charge axiale, mobilité douce",
-        "Marche active 30min × 4/sem — cadence modérée, terrain plat, chaussures adaptées",
-        "Natation ou vélo si disponible — activité portée, zéro impact articulaire",
-        "Kiné/mobilité 15min quotidien — spécifique à la zone concernée",
-      ],
-      lectures: [
-        "Healing Back Pain — John Sarno (comprendre la douleur chronique différemment)",
-        "Becoming a Supple Leopard — Kelly Starrett (mobilité et prévention blessures)",
-        "The 4-Hour Body — Tim Ferriss (minimal effective dose pour le corps)",
-      ],
-      habitudes: [
-        "~130g de protéines/jour — maintenir la masse musculaire pendant la rééducation",
-        "Anti-inflammatoires naturels: curcuma, oméga-3, sommeil",
-        "Écouter la douleur — douleur = signal, pas ennemi. Distinguer inconfort et blessure",
-        "Consulter un kiné pour valider les exercices avant de commencer",
-      ],
-      planning: [
-        "Lun: Séance A adaptée + mobilité 15min",
-        "Mar: Marche 30min",
-        "Mer: Natation/vélo 30min ou repos",
-        "Jeu: Séance A adaptée + mobilité 15min",
-        "Ven: Marche 30min",
-        "Sam: Activité douce au choix",
-        "Dim: Repos et récupération",
-      ],
-      non_negotiables: [
-        "Valider chaque exercice avec un professionnel de santé",
-        "Zéro douleur aiguë pendant les exercices — inconfort ok, douleur non",
-        "Régularité > intensité — 4 séances légères valent mieux que 2 séances intenses",
-        "Sommeil 8h — la réparation tissulaire se fait la nuit",
-        "Patience — une remise en forme adaptée prend 2x plus de temps mais dure 10x plus",
-      ],
-    },
-    {
-      id: "A7",
-      profil: "Peu de temps · HIIT · 30min max",
-      match: a => a.duree?.includes("30 minutes"),
-      titre_cycle: "CYCLE 1 — EFFICACITÉ MAXIMALE 30MIN",
-      objectif_cycle: "Maximum de résultats en minimum de temps, installer la régularité",
-      sport: [
-        "Circuit HIIT A (Lun/Mer/Ven) — 25min: Burpees 3×10, Squat sauté 3×15, Pompes 3×12, Mountain climbers 3×20, Gainage 3×30s",
-        "Cardio court (Mar/Jeu) — 20min: Corde à sauter ou sprint 30s/30s × 10 rounds",
-        "Progression: augmenter les reps ou diminuer les temps de repos — pas la durée",
-        "Pas d'échauffement = blessure. 5min obligatoires avant chaque circuit",
-      ],
-      lectures: [
-        "Spark — John Ratey (l'exercice court transforme le cerveau — la motivation vient après)",
-        "The One-Minute Workout — Martin Gibala (la science du HIIT, court et efficace)",
-        "Atomic Habits — James Clear (enchaîner les petites habitudes pour durer)",
-      ],
-      habitudes: [
-        "~120g de protéines/jour — objectif réaliste pour quelqu'un de très occupé",
-        "Préparer sa tenue la veille — réduire la friction à zero",
-        "Entraîner à la même heure chaque jour — ancrage comportemental",
-        "Pas de perfection — une séance de 20min vaut mieux que rien",
-      ],
-      planning: [
-        "Lun: Circuit HIIT A (25min)",
-        "Mar: Cardio court (20min)",
-        "Mer: Circuit HIIT A (25min)",
-        "Jeu: Cardio court (20min)",
-        "Ven: Circuit HIIT A (25min)",
-        "Sam: Marche ou repos",
-        "Dim: Repos total",
-      ],
-      non_negotiables: [
-        "5 séances minimum — le volume compense l'intensité modérée",
-        "Jamais sauter lundi — le début de semaine donne le ton",
-        "Préparer sa tenue et son espace la veille",
-        "Minimum 120g de protéines — l'alimentation fait 70% du résultat",
-        "Si une séance tombe — la refaire le lendemain, pas l'annuler",
-      ],
-    },
-    {
-      id: "A8",
-      profil: "Avancé · Endurance trail/running",
-      match: a => (a.niveau?.includes("Avancé") || a.niveau?.includes("Compétiteur")) && a.sport_actuel?.toLowerCase().includes("run"),
-      titre_cycle: "CYCLE 1 — VOLUME & SPÉCIFICITÉ",
-      objectif_cycle: "Construire le volume kilométrique, renforcer les appuis, optimiser la nutrition course",
-      sport: [
-        "Volume hebdo: 50-60km répartis sur 5-6 sorties à dominante EF (80% du volume)",
-        "1 séance qualité/sem — seuil 20min ou VMA courts 6×1000m",
-        "Renforcement spécifique 2x/sem — fessiers, ischio, mollets, stabilisateurs cheville",
-        "Sortie longue progressive — +10% volume/semaine maximum",
-      ],
-      lectures: [
-        "Running with the Kenyans — Adharanand Finn (comprendre l'entraînement d'élite)",
-        "Training for the Uphill Athlete — Killian Jornet (méthode trail avancée)",
-        "The Sports Gene — David Epstein (science de la performance et adaptabilité)",
-      ],
-      habitudes: [
-        "~170g de protéines/jour + glucides adaptés au volume",
-        "Nutrition avant/pendant/après — gels ou dattes sur les sorties >1h",
-        "Récupération active: bain froid ou compression post-séance longue",
-        "Analyse Strava hebdo — tendances cardio, allures, zones d'effort",
-      ],
-      planning: [
-        "Lun: Footing EF 45min + renforcement",
-        "Mar: Footing EF 1h",
-        "Mer: Séance qualité (seuil ou VMA)",
-        "Jeu: Footing EF 50min + renforcement",
-        "Ven: Footing EF récupération 30min",
-        "Sam: Repos",
-        "Dim: Sortie longue EF",
-      ],
-      non_negotiables: [
-        "80% du volume en EF — pas de héros sur les footings faciles",
-        "Renforcement 2x/sem sans exception — prévention blessures",
-        "Nutrition pendant les sorties longues — ne jamais partir à jeun >1h",
-        "Augmentation volume max 10%/semaine",
-        "1 semaine de décharge toutes les 4 semaines",
-      ],
-    },
-    {
-      id: "A9",
-      profil: "Intermédiaire · Home gym",
-      match: a => a.niveau?.includes("Intermédiaire") && a.lieu?.includes("Home gym"),
-      titre_cycle: "CYCLE 1 — TRANSFORMATION HOME GYM",
-      objectif_cycle: "Progresser avec le matériel disponible, optimiser l'entraînement à domicile",
-      sport: [
-        "Séance A (Lun/Jeu) — Tractions 4×max, Pompes lestées 3×15, Rowing avec haltères 3×12, Gainage 3×45s",
-        "Séance B (Mar/Ven) — Squat haltères 4×12, Soulevé de terre haltères 3×10, Fentes 3×12/jambe, Mollets 4×15",
-        "Cardio (Mer) — Running ou corde à sauter 25min",
-        "Progression: augmenter charge ou reps chaque semaine sur au moins 1 exercice",
-      ],
-      lectures: [
-        "Convict Conditioning — Paul Wade (progressions poids du corps jusqu'au niveau avancé)",
-        "Never Gymless — Ross Enamait (athlétisme sans équipement, approche brutale)",
-        "Atomic Habits — James Clear (système pour ne jamais sauter une séance)",
-      ],
-      habitudes: [
-        "~160g de protéines/jour",
-        "Espace d'entraînement permanent — pas de mise en place à chaque séance",
-        "Journal de progression obligatoire — ce qui n'est pas mesuré ne progresse pas",
-        "Musique/podcast dédié à l'entraînement — signal contextuel pour le cerveau",
-      ],
-      planning: [
-        "Lun: Séance A — haut du corps",
-        "Mar: Séance B — bas du corps",
-        "Mer: Cardio 25min",
-        "Jeu: Séance A — progression charges",
-        "Ven: Séance B — progression charges",
-        "Sam: Cardio ou repos actif",
-        "Dim: Repos total",
-      ],
-      non_negotiables: [
-        "Espace de travail prêt en permanence — la friction tue la régularité",
-        "Journal de séance rempli à chaque entraînement",
-        "160g de protéines/jour",
-        "Progresser sur au moins 1 mouvement par semaine",
-        "Pas d'écran pendant la séance — focus total",
-      ],
-    },
-    {
-      id: "A10",
-      profil: "Tous niveaux · Énergie & santé générale",
-      match: a => a.objectif?.includes("énergie") || a.objectif?.includes("santé"),
-      titre_cycle: "CYCLE 1 — VITALITÉ & FONDATIONS",
-      objectif_cycle: "Retrouver l'énergie quotidienne, établir des fondations durables",
-      sport: [
-        "Marche rapide 30min × 5/sem — la base la plus sous-estimée de la santé",
-        "Renforcement doux 2x/sem (Lun/Jeu) — Squat chaise 3×15, Pompes genoux 3×10, Bird dog 3×10, Gainage 3×30s",
-        "Yoga ou étirements 15min quotidien — matin ou soir selon la préférence",
-        "1 activité plaisir/sem — sport collectif, danse, natation — quelque chose qui donne de l'énergie",
-      ],
-      lectures: [
-        "Why We Sleep — Matthew Walker (le sommeil comme fondation de tout le reste)",
-        "Spark — John Ratey (l'exercice transforme l'énergie et la cognition)",
-        "The Circadian Code — Satchin Panda (synchroniser le corps avec son rythme naturel)",
-      ],
-      habitudes: [
-        "~120g de protéines/jour — minimum pour maintenir l'énergie et la satiété",
-        "Lumière naturelle dans les 30min après le réveil — régule le cortisol et la mélatonine",
-        "Pas d'écran 1h avant le lit — qualité du sommeil directement impactée",
-        "Repas à horaires réguliers — stabilise la glycémie et l'énergie",
-      ],
-      planning: [
-        "Lun: Renforcement doux 30min + marche 20min",
-        "Mar: Marche 30min + yoga 15min",
-        "Mer: Activité plaisir ou marche 30min",
-        "Jeu: Renforcement doux 30min",
-        "Ven: Marche 30min + yoga 15min",
-        "Sam: Activité en plein air",
-        "Dim: Repos et récupération",
-      ],
-      non_negotiables: [
-        "Marche 30min minimum 5j/sem — pas négociable",
-        "Lumière naturelle le matin — avant tout écran",
-        "Pas d'écran 1h avant le lit",
-        "120g de protéines — protéger le muscle et stabiliser l'énergie",
-        "Mesurer l'énergie sur 10 chaque soir — piloter sur les tendances",
-      ],
-    },
-  ],
+PROFIL DU SPORTIF:
+- Identité cible: "${identite}"
+- Valeurs: ${valeurs.join(", ")}
+- Horaires de travail: ${a.horaires || "non précisé"}
+- Lieu d'entraînement: ${a.lieu || "non précisé"}
+- Temps disponible par séance: ${a.duree || "non précisé"}
+- Niveau actuel: ${a.niveau || "non précisé"}
+- Sport actuel: ${a.sport_actuel || "aucun"}
+- Point faible principal: ${a.point_faible || "non précisé"}
+- Contrainte physique: ${a.contrainte || "aucune"}
+- Objectif: ${a.objectif || "non précisé"}
+- Objectif chiffré: ${a.chiffre || "non précisé"}
+- Séances/semaine possibles: ${a.seances || "non précisé"}
+- Jours fixes: ${a.jours_fixes || "non précisé"}
+- Créneau préféré: ${a.creneau || "non précisé"}
+- Alimentation actuelle: ${a.alim_actuelle || "non précisé"}
+- Problème alimentaire: ${a.alim_probleme || "non précisé"}
+- Cuisine ou prêt-à-manger: ${a.cuisine || "non précisé"}
+- Sommeil: ${a.sommeil || "non précisé"}
+- Stress: ${a.stress || "non précisé"}
+- Ce qui a déjà échoué: ${a.echec || "rien de précisé"}
+- Pourquoi ça n'a pas tenu: ${a.pourquoi || "non précisé"}
 
-  // Les autres facettes auront 3 programmes de base pour l'instant
-  createur: [
-    {
-      id: "C1",
-      profil: "Débutant · Construire l'habitude de création",
-      match: a => a.rythme?.includes("0") || a.rythme?.includes("15"),
-      titre_cycle: "CYCLE 1 — INSTALLER LE FLUX",
-      objectif_cycle: "Créer 15 jours consécutifs, vaincre la résistance initiale",
-      sport: ["Création 20min/jour minimum — même mauvaise, même inachevée","Journaling créatif 10min le matin — avant les écrans","1 publication par semaine — peu importe la qualité","Lecture/inspiration 30min × 3/sem"],
-      lectures: ["The War of Art — Pressfield (comprendre et vaincre la résistance)","Atomic Habits — Clear (construire l'habitude créative)","Big Magic — Gilbert (créer depuis la légèreté, pas la peur)"],
-      habitudes: ["Créer avant de consommer — aucun contenu avant sa propre création","Carnet d'idées toujours accessible — noter tout, filtrer après","Même heure de création chaque jour — ancrage neurologique","Déconnecter les notifications pendant la session"],
-      planning: ["Lun: Création 25min + journaling","Mar: Consommation inspirante 30min","Mer: Création 25min — itérer sur la veille","Jeu: Publication ou partage (brouillon ok)","Ven: Création 25min + revue de la semaine","Sam: Projet libre — explorateur","Dim: Repos créatif — recharger"],
-      non_negotiables: ["Créer AVANT de consommer chaque matin","20min minimum sans exception — même les mauvais jours","1 publication minimum par semaine","Carnet d'idées rempli chaque jour","Pas de réseaux sociaux les 30 premières minutes de la journée"],
-    },
-    {
-      id: "C2",
-      profil: "Intermédiaire · Construire une audience",
-      match: a => a.objectif?.includes("audience") && !a.rythme?.includes("0"),
-      titre_cycle: "CYCLE 1 — COHÉRENCE & VISIBILITÉ",
-      objectif_cycle: "Publier 3x/sem, analyser ce qui résonne, construire la régularité publique",
-      sport: ["Création deep work 2h/matin × 5j — premier bloc avant tout","Publication 3x/sem minimum — qualité suffit, régularité prime","Analyse mensuel: posts qui ont marché, tendances, ajustements","Interaction 30min/jour — commenter, répondre, construire les relations"],
-      lectures: ["Show Your Work — Kleon (partager le processus, pas le résultat)","This is Marketing — Godin (comprendre son audience profondément)","Contagious — Berger (pourquoi les idées se propagent)"],
-      habitudes: ["Contenu batché: créer 3 posts en une session, publier au fil de la semaine","Recycler ses meilleures idées — reformater, remixer, republier","Étudier ses métriques 1x/sem — engagement > reach","Construire la liste email dès le premier jour — l'audience qu'on possède"],
-      planning: ["Lun: Deep work création + batch 3 posts","Mar: Publication + interaction 30min","Mer: Création contenu + inspiration 30min","Jeu: Publication + analyse métriques","Ven: Création + publication","Sam: Interaction communauté + idées semaine suivante","Dim: Déconnexion totale"],
-      non_negotiables: ["3 publications/sem minimum — la régularité bat la qualité","Deep work création avant tout autre tâche","Analyser les métriques chaque vendredi","Répondre à chaque commentaire les 48 premières heures","Une idée de contenu capturée chaque jour"],
-    },
-    {
-      id: "C3",
-      profil: "Avancé · Terminer un projet",
-      match: a => a.objectif?.includes("Terminer"),
-      titre_cycle: "CYCLE 1 — LIVRAISON",
-      objectif_cycle: "Terminer le projet en cours, dépasser le perfectionnisme, publier",
-      sport: ["Sessions de travail en blocs de 90min — Pomodoro adapté au travail profond","Deadline quotidienne — un livrable précis à finir avant 18h","Pas de nouvelles idées pendant le sprint — noter et ignorer","Revue quotidienne 15min — ce qui est fait, ce qui reste, blocages"],
-      lectures: ["The Lean Startup — Ries (lancer vite, itérer — parfait est l'ennemi du bien)","Finish — Miller (l'art de terminer ce qu'on commence)","Deep Work — Newport (focus radical pour créer des œuvres importantes)"],
-      habitudes: ["Définir 'terminé' précisément avant de commencer — évite le scope creep","Travailler en public — annoncer sa deadline à quelqu'un","Protéger les matinées pour le travail profond — aucune réunion avant 14h","Célébrer chaque milestone — le cerveau a besoin de reconnaissance"],
-      planning: ["Lun: Session 90min — livrable spécifique","Mar: Session 90min — suite","Mer: Session 90min + revue mi-semaine","Jeu: Session 90min — sprint","Ven: Session 90min + livraison semaine","Sam: Repos du projet","Dim: Planification semaine suivante"],
-      non_negotiables: ["1 session de 90min minimum par jour","Définir le livrable du jour la veille au soir","Couper internet pendant les sessions si nécessaire","Pas de nouvelles fonctionnalités — finir ce qui est commencé","Date de publication fixée et annoncée publiquement"],
-    },
+RÈGLES DE GÉNÉRATION:
+- Adapte TOUT au profil réel. Si contrainte genou → pas de squat lourd. Si peu de temps → séances 45min max.
+- Les séances muscu doivent avoir 2 types (A et B) avec exercices précis et séries/reps
+- L'alimentation sans comptage de calories — règle de l'assiette + protéines cibles
+- La semaine type avec jours nommés selon les disponibilités réelles
+- Les 5 non-négociables du cycle = les règles d'or à ne jamais briser
+- Sois honnête sur la progression — débutant ≠ avancé
+
+Réponds UNIQUEMENT en JSON valide, sans markdown:
+{
+  "titre_cycle": "nom du cycle adapté au profil",
+  "objectif_cycle": "objectif précis et mesurable pour ces 15 jours",
+  "sport": [
+    "Séance A (ex: Lun/Jeu) — Tirage vertical 3x8-10, Développé poitrine 3x8-10, Gainage 3x45s",
+    "Séance B (ex: Mar/Ven) — Rowing assis 3x8-10, Développé épaules 3x8-10, Presse cuisses 3x10",
+    "Cardio/endurance — type, durée, fréquence selon profil",
+    "Règle d'or muscu — s'arrêter X reps avant l'échec, progression quand..."
   ],
-  entrepreneur: [
-    {
-      id: "E1",
-      profil: "Idée / Validation · Premiers clients",
-      match: a => a.stade?.includes("Idée") || a.stade?.includes("Validation"),
-      titre_cycle: "CYCLE 1 — VALIDATION TERRAIN",
-      objectif_cycle: "Parler à 30 prospects, obtenir 3 premiers clients ou pré-commandes",
-      sport: ["MIT quotidien: 1 seule tâche haute valeur à faire absolument","Prospection 2h/jour — appels, messages, rencontres — pas d'emails froids","Revue métriques quotidienne: prospects contactés, réponses, conversions","Bloc deep work 2h/matin — avant emails et réseaux"],
-      lectures: ["The Mom Test — Fitzpatrick (poser les bonnes questions à ses prospects)","$100M Offers — Hormozi (créer une offre irrésistible)","Zero to One — Thiel (construire quelque chose de vraiment nouveau)"],
-      habitudes: ["Parler à 5 prospects minimum par jour — rien ne remplace le terrain","Documenter chaque refus — les objections sont de l'or","Pas de code/design avant validation — vendre d'abord, construire après","Réseau quotidien: 1 message de valeur à 1 personne de son réseau"],
-      planning: ["Lun: Identification 20 prospects + 5 premiers contacts","Mar: 5 contacts + 2 appels si possible","Mer: Revue feedback + ajustement offre","Jeu: 5 contacts + itération message","Ven: 5 contacts + bilan semaine + pipeline","Sam: Stratégie semaine suivante","Dim: Repos"],
-      non_negotiables: ["5 contacts prospects minimum par jour","Documenter chaque conversation — insights terrain","Pas de perfectionnisme produit avant validation","MIT fait avant 10h chaque matin","Revue pipeline chaque vendredi"],
-    },
-    {
-      id: "E2",
-      profil: "Croissance · Revenus réguliers",
-      match: a => a.stade?.includes("Croissance"),
-      titre_cycle: "CYCLE 1 — SYSTÈMES & SCALE",
-      objectif_cycle: "Documenter les processus, doubler la prospection, déléguer 1 tâche",
-      sport: ["Bloc stratégie 2h/sem (lundi matin) — travailler SUR le business pas DANS","Prospection systématisée: 10 contacts/jour via système répétable","Métriques hebdo: CAC, LTV, taux de conversion, MRR","Déléguer 1 tâche récurrente cette semaine"],
-      lectures: ["$100M Leads — Hormozi (systèmes d'acquisition clients scalables)","The E-Myth Revisited — Gerber (travailler sur le business, pas dedans)","Traction — Weinberg (canaux d'acquisition qui fonctionnent vraiment)"],
-      habitudes: ["Revue métriques chaque lundi matin — piloter les chiffres","Créer une SOP pour chaque processus répété plus de 3 fois","Blocs de travail en thèmes — lundi stratégie, mardi prospection...","Investir 10% des revenus en formation ou outils qui scalent"],
-      planning: ["Lun: Stratégie + revue métriques + planning semaine","Mar: Prospection + vente","Mer: Livraison client + ops","Jeu: Prospection + partenariats","Ven: Bilan semaine + contenu/visibilité","Sam: Formation ou projet stratégique","Dim: Repos"],
-      non_negotiables: ["Revue métriques chaque lundi sans exception","10 contacts prospects/jour","1 SOP créée par semaine","MIT fait avant 10h","1 tâche déléguée ou automatisée par semaine"],
-    },
-    {
-      id: "E3",
-      profil: "Scale · Optimisation",
-      match: a => a.stade?.includes("Scale"),
-      titre_cycle: "CYCLE 1 — LEVERAGE & IMPACT",
-      objectif_cycle: "Identifier les 20% d'actions qui génèrent 80% des résultats, éliminer le reste",
-      sport: ["Audit 80/20: quelles actions génèrent 80% des revenus?","Déléguer ou éliminer tout ce qui n'est pas dans ce 20%","Travailler 4h de deep work maximum — qualité sur quantité","Vision 90j: objectif précis, indicateurs clés, actions quotidiennes"],
-      lectures: ["The 4-Hour Workweek — Ferriss (leverage et élimination)","Essentialism — McKeown (faire moins, mieux)","Good to Great — Collins (ce qui sépare les grandes entreprises"],
-      habitudes: ["Calendrier par blocs — chaque heure a un type de travail assigné","Réunions maximum 30min avec agenda clair","Inbox zero 2x/jour — email n'est pas du travail","Décision framework: si pas maintenant, jamais"],
-      planning: ["Lun: Vision + OKR + délégation","Mar: Deep work — projets haute valeur","Mer: Réunions + management","Jeu: Deep work — stratégie","Ven: Bilan + planning + visibilité","Sam: Formation ou repos","Dim: Repos complet"],
-      non_negotiables: ["4h de deep work minimum par jour","Déléguer tout ce qui n'est pas à votre niveau de valeur","Métriques clés revues chaque matin en 10min","Pas d'email avant 10h","Décision dans les 24h — les décisions qui traînent coûtent de l'énergie"],
-    },
+  "lectures": [
+    "Titre — Auteur (raison précise liée au profil et à l'objectif)",
+    "Titre — Auteur (raison précise)",
+    "Titre — Auteur (raison précise)"
   ],
-  sage: [
-    {
-      id: "S1",
-      profil: "Débutant · Calmer l'anxiété",
-      match: a => (a.pratique?.includes("Aucune") || a.pratique?.includes("occasionnelle")) && a.objectif?.includes("anxiété"),
-      titre_cycle: "CYCLE 1 — ANCRAGE & CALME",
-      objectif_cycle: "Installer une pratique quotidienne, réduire le niveau de bruit mental",
-      sport: ["Méditation guidée 10min/matin — app Calm, Headspace ou YouTube","Respiration cohérence cardiaque 5min × 3/jour — 5s inspirez, 5s expirez","Journaling 10min le soir — vider le mental avant de dormir","Marche méditative 20min × 3/sem — sans téléphone"],
-      lectures: ["L'Art de la Méditation — Matthieu Ricard (introduction accessible)","Wherever You Go, There You Are — Kabat-Zinn (pleine conscience sans ésotérisme)","The Anxiety and Worry Workbook — Clark & Beck (approche cognitive pratique)"],
-      habitudes: ["Pas d'écran dans les 30min après le réveil — commencer par la méditation","Cohérence cardiaque avant les situations stressantes","Journaling soir: 3 choses positives + 1 inquiétude déposée sur papier","Réduire la consommation de news à 1x/jour maximum"],
-      planning: ["Lun: Méditation 10min + journaling soir","Mar: Cohérence cardiaque + marche méditative","Mer: Méditation 10min + lecture 20min","Jeu: Cohérence cardiaque + journaling","Ven: Méditation + marche méditative","Sam: Pratique longue 20min + temps en nature","Dim: Repos contemplatif"],
-      non_negotiables: ["Méditation 10min chaque matin avant tout écran","Cohérence cardiaque 3x/jour","Journaling soir 10min","Pas de news/réseaux avant 10h","Sommeil à heures fixes"],
-    },
-    {
-      id: "S2",
-      profil: "Intermédiaire · Clarté & décisions",
-      match: a => !a.pratique?.includes("Aucune") && a.objectif?.includes("Clarté"),
-      titre_cycle: "CYCLE 1 — DISCERNEMENT",
-      objectif_cycle: "Approfondir la pratique, développer la clarté décisionnelle",
-      sport: ["Méditation 20min/matin — sans guidage, observer sans juger","Journaling profond 20min — questions de fond, pas de surface","Lecture philosophique 30min/jour — Stoïciens, Bouddhisme, Psychologie","Silence intentionnel 1h/sem — aucun contenu, aucune conversation"],
-      lectures: ["Méditations — Marc Aurèle (sagesse stoïcienne quotidienne)","Man's Search for Meaning — Frankl (trouver le sens dans n'importe quelle condition)","The Power of Now — Tolle (présence radicale comme outil de clarté)"],
-      habitudes: ["Questions de journaling: 'Qu'est-ce qui est sous mon contrôle aujourd'hui?'","Dichotomie du contrôle — distinguer ce qui dépend et ne dépend pas de soi","Mémoriser une citation philosophique par semaine","Pratique de l'inconfort volontaire 1x/sem — douche froide, jeûne, silence"],
-      planning: ["Lun: Méditation 20min + journaling profond","Mar: Lecture 30min + réflexion","Mer: Méditation + pratique inconfort","Jeu: Journaling + lecture","Ven: Méditation + revue semaine","Sam: Silence intentionnel 1h + nature","Dim: Lecture + préparation semaine"],
-      non_negotiables: ["Méditation 20min chaque matin","Journaling profond 4x/sem minimum","Lecture philosophique quotidienne","1h de silence par semaine","Pas de décision importante sans nuit de sommeil"],
-    },
-    {
-      id: "S3",
-      profil: "Avancé · Paix intérieure",
-      match: a => a.pratique?.includes("avancée") || a.pratique?.includes("régulière"),
-      titre_cycle: "CYCLE 1 — INTÉGRATION PROFONDE",
-      objectif_cycle: "Intégrer la pratique dans l'action quotidienne, vivre la philosophie",
-      sport: ["Méditation 30-45min/matin — vipassana ou zazen selon tradition","Retraite d'une journée 1x/cycle — silence total, nature, déconnexion","Pratique informelle — pleine conscience dans chaque activité","Mentoring ou partage — enseigner ce qu'on a intégré"],
-      lectures: ["Being Peace — Thich Nhat Hanh (la paix comme pratique active)","The Untethered Soul — Singer (se libérer de la voix intérieure)","Letters from a Stoic — Sénèque (sagesse appliquée au quotidien)"],
-      habitudes: ["Journaling de contemplation 30min — sans questions, juste observer","Pratique de la gratitude radicale — même les difficultés","Enseigner une pratique à quelqu'un — consolide l'intégration","Revue mensuelle de ses valeurs — est-ce que j'y vis?"],
-      planning: ["Lun-Ven: Méditation 30-45min matin + pratique informelle","Sam: Retraite personnelle 4h ou journée complète","Dim: Journaling de contemplation + préparation semaine"],
-      non_negotiables: ["Méditation 30min minimum chaque matin","1 journée de retraite ce cycle","Pratique informelle consciente chaque jour","Partager/enseigner 1x/sem","Revue des valeurs chaque dimanche soir"],
-    },
+  "habitudes": [
+    "Habitude 1 — concrète et mesurable",
+    "Habitude 2 — concrète et mesurable",
+    "Habitude 3 — concrète et mesurable",
+    "Habitude 4 — concrète et mesurable"
   ],
-  explorateur: [
-    {
-      id: "EX1",
-      profil: "Très routinier · Sortir du confort",
-      match: a => a.routine?.includes("Très routinier") || a.frein?.includes("zone de confort"),
-      titre_cycle: "CYCLE 1 — RUPTURE DE ROUTINE",
-      objectif_cycle: "1 nouvelle chose par jour, 1 aventure significative par semaine",
-      sport: ["1 micro-aventure quotidienne — prendre un chemin différent, essayer un restaurant inconnu","1 aventure hebdo — activité jamais faite, lieu jamais visité","Parler à 1 inconnu par jour — commencer une conversation","Documenter chaque expérience — photos, notes, ressentis"],
-      lectures: ["Vagabonding — Potts (l'art de vivre l'aventure au quotidien)","Comfort Crisis — Easter (l'inconfort comme chemin vers la vitalité)","The Alchemist — Coelho (suivre sa légende personnelle)"],
-      habitudes: ["Règle du oui: dire oui à toute proposition nouvelle les 15 premiers jours","Route différente chaque jour — activer la plasticité cérébrale","Carnet d'expériences: noter 1 chose nouvelle vécue chaque soir","Planifier l'aventure hebdo le dimanche soir"],
-      planning: ["Lun: Nouvelle activité matinale + 1 inconnu parle","Mar: Route différente + lieu inexploré","Mer: Expérience culturelle ou sociale","Jeu: Sortir sa zone de confort précise","Ven: Aventure spontanée","Sam: Grande aventure de la semaine","Dim: Documentation + planification"],
-      non_negotiables: ["1 chose nouvelle chaque jour — sans exception","Parler à 1 inconnu par jour","1 aventure significative par semaine","Documenter dans le carnet chaque soir","Dire oui par défaut ces 15 jours"],
-    },
-    {
-      id: "EX2",
-      profil: "Explorateur voyages · Budget limité",
-      match: a => a.style?.includes("Voyages") && (a.budget?.includes("50") || a.budget?.includes("200")),
-      titre_cycle: "CYCLE 1 — EXPLORER SANS ARGENT",
-      objectif_cycle: "Découvrir sa région comme un touriste, maximiser l'exploration avec peu de budget",
-      sport: ["Touriste local 1x/sem — explorer sa ville/région comme si c'était la première fois","Couchsurfing ou échange d'hospitalité — rencontrer des gens différents","Randonnées et explorations gratuites — nature, patrimoine, quartiers","Volontariat 1 demi-journée — s'immerger dans une communauté différente"],
-      lectures: ["Vagabonding — Potts (voyager longtemps avec peu d'argent)","The Art of Travel — De Botton (pourquoi on voyage et ce qu'on cherche vraiment)","Into the Wild — Krakauer (l'appel de l'aventure brute)"],
-      habitudes: ["Liste de 20 endroits à explorer dans un rayon de 100km","Budget exploration dédié — même 10€/sem = 20€ en 15 jours","Photographier avec intention — pas en mode touriste","Parler aux locaux, pas aux touristes"],
-      planning: ["Lun: Planification aventures semaine","Mar: Exploration locale (quartier, musée, parc)","Mer: Rencontre humaine intentionnelle","Jeu: Randonnée ou exploration nature","Ven: Expérience culturelle gratuite","Sam: Grande aventure du week-end","Dim: Documentation + prochaine destination"],
-      non_negotiables: ["1 sortie exploratoire minimum par semaine","Parler à 3 locaux par semaine","Documenter chaque aventure","Budget exploration respecté","Téléphone en mode avion pendant les aventures"],
-    },
-    {
-      id: "EX3",
-      profil: "Explorateur compétences · Apprentissage",
-      match: a => a.style?.includes("Apprentissages"),
-      titre_cycle: "CYCLE 1 — COMPÉTENCES INATTENDUES",
-      objectif_cycle: "Commencer 2 nouvelles compétences totalement inattendues",
-      sport: ["Choisir 2 compétences radicalement nouvelles — pas dans son domaine habituel","30min de pratique délibérée par compétence × 5j/sem","Trouver un mentor ou communauté pour chaque compétence","Documenter la progression — vidéos, notes, partage"],
-      lectures: ["The First 20 Hours — Kaufman (apprendre n'importe quoi en 20h)","Range — Epstein (pourquoi les généralistes réussissent dans un monde spécialisé)","Ultralearning — Young (protocoles d'apprentissage accéléré)"],
-      habitudes: ["Débutant délibéré — accepter d'être mauvais et le montrer","Pratique en public — partager ses progrès même imparfaits","Connecter les nouvelles compétences à ses compétences existantes","Journal d'apprentissage: ce qui bloque, ce qui avance, insights"],
-      planning: ["Lun: Compétence A (30min) + compétence B (30min)","Mar: Approfondissement compétence A","Mer: Approfondissement compétence B","Jeu: Pratique combinée A + B","Ven: Application/projet qui combine les deux","Sam: Partage/enseignement d'un aspect","Dim: Revue apprentissage + planification"],
-      non_negotiables: ["30min minimum par compétence × 5j/sem","Partager les progrès chaque semaine","Accepter d'être nul — c'est le point de départ","Journal d'apprentissage quotidien","Trouver une communauté pour chaque compétence"],
-    },
+  "nutrition": {
+    "regle_assiette": "description règle assiette adaptée",
+    "proteines_cible": "X g/jour — sources recommandées",
+    "repas_types": ["Petit-déj: options", "Déjeuner: options", "Dîner: options"],
+    "regel_alcool_social": "conseil adapté au profil"
+  },
+  "planning": [
+    "Lun: séance précise + où",
+    "Mar: séance précise ou repos",
+    "Mer: séance précise",
+    "Jeu: séance précise + où",
+    "Ven: séance ou cardio léger",
+    "Sam: repos ou activité légère",
+    "Dim: footing ou récup active"
   ],
-  guerrier: [
-    {
-      id: "G1",
-      profil: "Débutant mental · Installer la discipline",
-      match: a => a.niveau?.includes("cède souvent") || a.intensite?.includes("doucement"),
-      titre_cycle: "CYCLE 1 — FONDATIONS DE DISCIPLINE",
-      objectif_cycle: "Ne jamais manquer deux jours consécutifs, tenir les 5 engagements quotidiens",
-      sport: ["Lever à heure fixe 7j/7 — même le week-end, ±30min maximum","Douche froide 30s après la douche chaude — inconfort contrôlé quotidien","1 défi physique/jour — marche 30min, sport, ou exercice difficile","Journaling de guerre 10min le soir — ce que j'ai fait, ce que j'ai évité"],
-      lectures: ["Extreme Ownership — Willink (responsabilité totale, aucune excuse)","The Obstacle is the Way — Holiday (transformer les difficultés en carburant)","Can't Hurt Me — Goggins (repousser les limites mentales)"],
-      habitudes: ["Liste des 5 engagements quotidiens — cochés chaque soir","Règle des 2 minutes: si ça prend moins de 2min, maintenant","Éliminer 1 source de confort inutile cette semaine","Dire non à 1 chose facile par jour — construire le muscle du refus"],
-      planning: ["Lun: Lever fixe + douche froide + défi physique + journaling","Mar: Idem + confronter 1 chose évitée","Mer: Idem + réduire 1 distraction","Jeu: Idem + défi social (parler à quelqu'un d'intimidant)","Ven: Idem + bilan semaine","Sam: Défi plus intense","Dim: Revue + planification défis semaine suivante"],
-      non_negotiables: ["Lever à heure fixe 7j/7","Douche froide quotidienne","Journaling de guerre chaque soir","Jamais 2 jours sans défi","5 engagements cochés chaque soir"],
-    },
-    {
-      id: "G2",
-      profil: "Intermédiaire · Forger le mental",
-      match: a => a.niveau?.includes("parfois") || a.niveau?.includes("relativement"),
-      titre_cycle: "CYCLE 1 — FORGE MENTALE",
-      objectif_cycle: "Augmenter la tolérance à l'inconfort, éliminer l'ennemi intérieur identifié",
-      sport: ["Exposition volontaire quotidienne à l'inconfort — froid, effort, social, jeûne","Méditation 15min/matin — observer les pensées sans les suivre","Entraînement physique intense 4x/sem — le corps forge le mental","Journaling de guerre 15min — analyse honnête de ses batailles"],
-      lectures: ["Discipline Equals Freedom — Willink (la liberté vient de la discipline)","Meditations — Marc Aurèle (stoïcisme appliqué au combat quotidien)","The Willpower Instinct — McGonigal (neuroscience de l'autocontrôle)"],
-      habitudes: ["Identifier son ennemi intérieur quotidien — et lui résister une fois","Pratique du jeûne intermittent 16:8 — maîtrise physiologique","Cold shower complète 2min — pas seulement 30 secondes","Revue hebdo: victoires et défaites — honnêteté totale"],
-      planning: ["Lun: Entraînement + méditation + inconfort volontaire","Mar: Défi mental (faire ce qu'on évite le plus)","Mer: Entraînement + journaling profond","Jeu: Exposition à la peur identifiée","Ven: Entraînement + bilan semaine","Sam: Défi physique ou mental intense","Dim: Récupération + préparation semaine"],
-      non_negotiables: ["1 inconfort volontaire quotidien — sans exception","Méditation 15min chaque matin","4 entraînements physiques intenses","Journaling de guerre chaque soir","Identifier et nommer son ennemi intérieur chaque jour"],
-    },
-    {
-      id: "G3",
-      profil: "Avancé · Niveau supérieur",
-      match: a => a.niveau?.includes("niveau supérieur") || a.intensite?.includes("extrême"),
-      titre_cycle: "CYCLE 1 — GUERRE TOTALE",
-      objectif_cycle: "Repousser les limites connues, forger une identité de guerrier inébranlable",
-      sport: ["Entraînement physique intense 6x/sem — jamais deux jours de suite sans","Jeûne 24h 1x/cycle — maîtrise absolue du corps","Exposition au froid 5min/jour — bain froid, douche froide totale","1 défi extrême cette semaine — marathon, jeûne, défi social intense"],
-      lectures: ["Living with a SEAL — Itzler (30 jours avec David Goggins — limite mentale)","Gates of Fire — Pressfield (l'esprit guerrier des Spartiates)","Antifragile — Taleb (ce qui ne nous tue pas nous renforce vraiment)"],
-      habitudes: ["Lever 5h30 — avant tout le monde, temps pour soi seul","Journal de guerre: victoires, défaites, leçons — 20min minimum","Éliminer toute dépendance identifiée — pas de négociation","Enseigner la discipline à quelqu'un — consolide l'identité"],
-      planning: ["Lun-Sam: Lever 5h30 + entraînement + défi quotidien + journaling","Dim: Récupération + revue de cycle + planification"],
-      non_negotiables: ["Lever 5h30 chaque jour","Entraînement physique intense 6x/sem","Jeûne 24h ce cycle","Journal de guerre 20min chaque soir","Éliminer 1 dépendance totalement ces 15 jours"],
-    },
+  "non_negotiables": [
+    "Non-négociable 1 — précis et actionnable",
+    "Non-négociable 2",
+    "Non-négociable 3",
+    "Non-négociable 4",
+    "Non-négociable 5"
   ],
+  "generated": true
+}`;
 };
 
-const selectProgramme = (facetteId, answers = {}) => {
-  const pool = PROGRAMMES[facetteId];
-  if (!pool) return null;
-  // Try to find matching programme
-  const match = pool.find(p => p.match && p.match(answers));
-  // Fallback to first programme
-  return match || pool[0];
+const buildGenericPrompt = (facetteId, valeurs, identite, answers) => {
+  const f = FACETTES.find(fc => fc.id === facetteId);
+  const a = answers || {};
+  const reponsesText = Object.entries(a).map(([k,v]) => `- ${k}: ${v}`).join("\n");
+  return `Tu es un coach expert en transformation identitaire — facette ${f?.label}.
+
+PROFIL:
+- Identité cible: "${identite}"
+- Valeurs: ${valeurs.join(", ")}
+- Réponses questionnaire:
+${reponsesText}
+
+Génère un programme de cycle 15 jours complet et personnalisé.
+Réponds UNIQUEMENT en JSON:
+{
+  "titre_cycle": "nom du cycle",
+  "objectif_cycle": "objectif précis 15 jours",
+  "sport": ["item1", "item2", "item3"],
+  "lectures": ["Titre — Auteur (raison)", "Titre — Auteur (raison)", "Titre — Auteur (raison)"],
+  "habitudes": ["habitude concrète 1", "habitude 2", "habitude 3", "habitude 4"],
+  "planning": ["Lun: ...", "Mar: ...", "Mer: ...", "Jeu: ...", "Ven: ...", "Sam: ...", "Dim: ..."],
+  "non_negotiables": ["règle 1", "règle 2", "règle 3", "règle 4", "règle 5"],
+  "generated": true
+}`;
 };
 
+const genererProgramme = async (facetteId, valeurs=[], identite="", tier="gratuit", answers={}) => {
+  const f = FACETTES.find(fc => fc.id === facetteId);
+  const template = PROGRAMME_TEMPLATE[facetteId] || PROGRAMME_TEMPLATE.athlete;
 
+  const prompt = facetteId === "athlete"
+    ? buildAthletePrompt(valeurs, identite, answers)
+    : buildGenericPrompt(facetteId, valeurs, identite, answers);
 
+  const raw = await callClaude(prompt);
+  if (!raw) return { ...template, planning: template.emploi_du_temps, generated: false };
+  try {
+    const clean = raw.replace(/```json|```/g, "").trim();
+    const parsed = JSON.parse(clean);
+    // Normalize: if nutrition object, flatten into habitudes
+    if (parsed.nutrition) {
+      const nutri = parsed.nutrition;
+      parsed.habitudes = [
+        ...(parsed.habitudes||[]),
+        nutri.proteines_cible ? `Protéines: ${nutri.proteines_cible}` : null,
+        nutri.regle_assiette ? `Assiette: ${nutri.regle_assiette}` : null,
+      ].filter(Boolean);
+      parsed.nutrition_detail = nutri;
+    }
+    if (parsed.non_negotiables) {
+      parsed.non_negotiables_list = parsed.non_negotiables;
+    }
+    return parsed;
+  } catch {
+    return { ...template, planning: template.emploi_du_temps, generated: false };
+  }
+};
+
+const genererRapportHebdo = async (state) => {
+  const f = FACETTES.find(fc => fc.id === state.facetteId);
+  const streak = getStreak(state.histoire || {});
+  const joursFaits = Object.keys(state.histoire || {}).length;
+  const rank = getRank(state.xp || 0);
+  const derniers7 = Object.entries(state.histoire || {}).slice(-7);
+  const moyVotes = derniers7.length > 0
+    ? Math.round(derniers7.reduce((a,[,j]) => a + Object.values(j.votes||{}).filter(Boolean).length, 0) / derniers7.length)
+    : 0;
+  
+  const prompt = `Tu es Kryos, coach de transformation identitaire. Génère un rapport hebdomadaire court et percutant.
+
+Données: Facette ${f?.label}, Rang ${rank.id}, Streak ${streak}j, Jour ${joursFaits}/90, Moyenne ${moyVotes} votes/jour cette semaine.
+
+Réponds UNIQUEMENT en JSON:
+{
+  "titre": "titre court percutant",
+  "analyse": "2-3 phrases d'analyse honnête basée sur les chiffres",
+  "point_fort": "ce qui s'est bien passé cette semaine",
+  "point_travail": "ce sur quoi travailler la semaine prochaine",
+  "objectif_semaine": "1 objectif concret et mesurable pour la semaine prochaine"
+}`;
+
+  const raw = await callClaude(prompt);
+  if (!raw) return null;
+  try {
+    return JSON.parse(raw.replace(/```json|```/g, "").trim());
+  } catch { return null; }
+};
 
 const CYCLE_DAYS = 15;
 const getCycleDay = (cycleStart) => {
@@ -2800,6 +2407,57 @@ const getCycleDay = (cycleStart) => {
   return diff + 1;
 };
 const isCycleEnd = (cycleStart) => getCycleDay(cycleStart) >= CYCLE_DAYS;
+
+const genererBilanCycle = async (state) => {
+  const f = FACETTES.find(fc => fc.id === state.facetteId);
+  const joursFaits = Object.keys(state.histoire||{}).length;
+  const streak = getStreak(state.histoire||{});
+  const rank = getRank(state.xp||0);
+  
+  // Calc prog completion rate
+  const progEntries = Object.values(state.histoire||{}).filter(j => j.prog);
+  const avgCompletion = progEntries.length > 0
+    ? Math.round(progEntries.reduce((a,j) => a + (j.prog?.pct||0), 0) / progEntries.length)
+    : 0;
+  
+  // Avg energie/sommeil
+  const entries = Object.values(state.histoire||{});
+  const avgEnergie = entries.length > 0
+    ? (entries.reduce((a,j) => a + (j.energie||0), 0) / entries.length).toFixed(1)
+    : 0;
+  const sommeilOk = entries.filter(j=>j.sommeil).length;
+
+  const prompt = `Tu es Kryos, coach de transformation identitaire. Génère un bilan de cycle percutant et honnête.
+
+Données du cycle ${state.cycleNum||1} (${CYCLE_DAYS} jours):
+- Facette: ${f?.label}
+- Identité cible: "${state.identite}"
+- Rang atteint: ${rank.id} — ${rank.title}
+- XP total: ${state.xp}
+- Streak: ${streak} jours consécutifs
+- Jours actifs: ${joursFaits}/${CYCLE_DAYS}
+- Complétion programme: ${avgCompletion}%
+- Énergie moyenne: ${avgEnergie}/10
+- Nuits de sommeil loggées: ${sommeilOk}/${CYCLE_DAYS}
+- Valeurs: ${(state.valeurs||[]).join(", ")}
+
+Réponds UNIQUEMENT en JSON:
+{
+  "titre": "titre court cinématique (ex: 'CYCLE 1 — TERMINÉ')",
+  "verdict": "1 phrase directe sur la performance globale",
+  "analyse": "2-3 phrases d'analyse honnête basée sur les chiffres réels",
+  "victoire": "La plus grande victoire de ce cycle (spécifique)",
+  "chantier": "Le point le plus important à améliorer au cycle suivant",
+  "message_kryos": "1 phrase finale de Kryos — ton style direct et scientifique",
+  "score": ${Math.round((joursFaits/CYCLE_DAYS*40) + (avgCompletion*0.3) + (streak/CYCLE_DAYS*30))}
+}`;
+
+  const raw = await callClaude(prompt);
+  if (!raw) return null;
+  try {
+    return JSON.parse(raw.replace(/```json|```/g, "").trim());
+  } catch { return null; }
+};
 
 
 // ═══════════════════════════════════════════════════════════
@@ -3020,22 +2678,10 @@ export default function App() {
     if(!state.cycleStart||!state.nom) return;
     if(isCycleEnd(state.cycleStart) && !state.bilanGenere && !showBilan){
       setState(s=>{ const ns={...s,bilanGenere:true}; persist(ns); return ns; });
-      const joursFaits = Object.keys(state.histoire||{}).length;
-      const streak = getStreak(state.histoire||{});
-      const rank = getRank(state.xp||0);
-      const progEntries = Object.values(state.histoire||{}).filter(j=>j.prog);
-      const avgCompletion = progEntries.length>0 ? Math.round(progEntries.reduce((a,j)=>a+(j.prog?.pct||0),0)/progEntries.length) : 0;
-      const score = Math.round((joursFaits/CYCLE_DAYS*40)+(avgCompletion*0.3)+(streak/CYCLE_DAYS*30));
-      setBilanData({
-        titre:`CYCLE ${state.cycleNum||1} — ${rank.title.toUpperCase()}`,
-        verdict:joursFaits>=12?"Cycle solide. La base est posée.":joursFaits>=8?"Cycle correct. Des ajustements à faire.":"Cycle difficile. Identifier les blocages.",
-        analyse:`${joursFaits} jours actifs sur ${CYCLE_DAYS}. Streak de ${streak} jours. Programme complété à ${avgCompletion}%. ${score>=70?"Progression cohérente.":score>=40?"Des hauts et des bas — normal.":"La régularité est le chantier principal."}`,
-        victoire:streak>=7?`Streak de ${streak} jours consécutifs.`:joursFaits>=10?`${joursFaits} jours actifs — plus des 2/3 du cycle.`:"Avoir commencé et tenu jusqu'au bout.",
-        chantier:avgCompletion<50?"Complétion du programme quotidien.":streak<5?"La régularité — ne jamais sauter 2 jours.":"Augmenter l'intensité et la précision.",
-        message_kryos:score>=70?"Le fondement est solide. Le cycle 2 peut aller plus loin.":"Le cycle 1 est rarement parfait. Ce qui compte : ce que tu en fais maintenant.",
-        score,
+      genererBilanCycle(state).then(b=>{
+        setBilanData(b);
+        setShowBilan(true);
       });
-      setShowBilan(true);
     }
   },[state.cycleStart, state.histoire]);
 
@@ -3089,14 +2735,19 @@ export default function App() {
     setShowQuestionnaire(true);
   };
 
-  const handleGenererProgramme = (answers={}) => {
-    const prog = selectProgramme(state.facetteId, answers);
+  const handleGenererProgramme = async (answers={}) => {
+    const prog = await genererProgramme(state.facetteId, state.valeurs, state.identite, state.tier||"gratuit", answers);
     if (prog) update({ programmeIA: prog, programmeDate: today(), questionnaireAnswers: answers, questionnaireDone: true, cycleStart: state.cycleStart || today() });
   };
 
-  const handleQuestionnaireSubmit = (answers) => {
+  const handleQuestionnaireSubmit = async (answers) => {
     setShowQuestionnaire(false);
-    handleGenererProgramme(answers);
+    await handleGenererProgramme(answers);
+  };
+
+  const handleGenererRapport = async () => {
+    const rapport = await genererRapportHebdo(state);
+    if (rapport) update({ rapportHebdo: rapport });
   };
 
   const handleSetTier = (tierId) => {
@@ -3132,7 +2783,7 @@ export default function App() {
     </>
   );
 
-  const TABS=[{id:"facette",label:"FACETTE",icon:f?.icon||"◈"},{id:"votes",label:"VOTES",icon:"⚔"},{id:"programme",label:"PROG.",icon:"📋"},{id:"profil",label:"PROFIL",icon:"◎"},{id:"quetes",label:"QUÊTES",icon:"✦"},{id:"retour",label:"RETOUR",icon:"◇"}];
+  const TABS=[{id:"facette",label:"FACETTE",icon:f?.img?null:(f?.icon||"◈"),img:f?.img},{id:"votes",label:"VOTES",icon:"⚔"},{id:"programme",label:"PROG.",icon:"📋"},{id:"profil",label:"PROFIL",icon:"◎"},{id:"quetes",label:"QUÊTES",icon:"✦"},{id:"retour",label:"RETOUR",icon:"◇"}];
 
   return (
     <>
