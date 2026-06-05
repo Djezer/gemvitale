@@ -8,6 +8,7 @@ import {
   getRank, getNextRank, getGlobalScore, getGlobalRank, getStreak,
   getWeekKey, getCycleDay, isCycleEnd,
 } from "./data.js";
+const getNext = getNextRank;
 
 export const CSS = `
 @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;600;700;900&family=Share+Tech+Mono&display=swap');
@@ -300,7 +301,7 @@ export function Gem3D({ color="#00ffcc", rank="E", size=260 }) {
 // FACETTE HUD
 // ═══════════════════════════════════════════════════════════
 export function FacetteHUD({ f, fRank, fXP, streak, identite, joursFaits, kryosDaily }) {
-  const next = getNext(fXP);
+  const next = getNextRank(fXP);
   const pct = next ? (fXP-fRank.minXP)/(next.minXP-fRank.minXP)*100 : 100;
   return (
     <div style={{ position:"relative",width:"100%",overflow:"hidden" }}>
@@ -448,7 +449,7 @@ export function CorrelationChart({ histoire }) {
 // ═══════════════════════════════════════════════════════════
 export function ProfileScreen({ state, onKryos }) {
   const { nom,valeurs,facetteId,facettesState={},xp } = state;
-  const rank=getRank(xp||0); const next=getNext(xp||0);
+  const rank=getRank(xp||0); const next=getNextRank(xp||0);
   const f=FACETTES.find(fc=>fc.id===facetteId);
   const streak=getStreak(state.histoire||{});
   const joursFaits=Object.keys(state.histoire||{}).length;
