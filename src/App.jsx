@@ -1309,9 +1309,17 @@ function VotesScreen({ state, onVote, onSommeil, onEnergie, onAurele, onAureleAn
             <p style={{color:"rgba(255,255,255,.2)",fontSize:8,fontFamily:"'Share Tech Mono',monospace",marginTop:1}}>Reviens demain pour voter</p>
           </div>
         </div>
-        <DailyTimer color={f?.color||"#a78bfa"}/>
       </div>
       )}
+      {/* Timers — toujours visibles */}
+      <div style={{display:"flex",gap:8,marginBottom:10,flexWrap:"wrap"}}>
+        <div style={{flex:1,minWidth:140}}>
+          <DailyTimer color={f?.color||"#a78bfa"}/>
+        </div>
+        <div style={{flex:1,minWidth:140}}>
+          <WeeklyTimer/>
+        </div>
+      </div>
       <div style={{ display:"flex",justifyContent:"space-between",alignItems:"center",background:"rgba(0,255,100,.05)",border:"1px solid rgba(0,255,100,.1)",borderRadius:6,padding:"9px 14px",marginBottom:13 }}>
         <span style={{ color:"rgba(255,255,255,.28)",fontSize:9,fontFamily:"'Orbitron',monospace",letterSpacing:2 }}>XP AUJOURD'HUI</span>
         <span style={{ color:"#00ff64",fontSize:17,fontFamily:"'Orbitron',monospace",fontWeight:700,textShadow:"0 0 12px #00ff6477" }}>+{xpToday}</span>
@@ -1325,7 +1333,6 @@ function VotesScreen({ state, onVote, onSommeil, onEnergie, onAurele, onAureleAn
             <button onClick={()=>!journeeScellee&&onBoss()} style={{ padding:"5px 10px",borderRadius:3,background:bossJour?"rgba(239,68,68,.18)":"rgba(255,255,255,.025)",border:`1px solid ${bossJour?"#ef4444":"rgba(239,68,68,.18)"}`,color:bossJour?"#ef4444":"rgba(255,255,255,.22)",fontSize:9,cursor:"pointer",fontFamily:"'Orbitron',monospace",transition:"all .2s" }}>{bossJour?"✓":"RELEVER"}</button>
           </div>
         </div>
-        {!bossJour && <WeeklyTimer/>}
       </div>
       {/* Sommeil + Energie */}
       <div style={{ display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:9 }}>
