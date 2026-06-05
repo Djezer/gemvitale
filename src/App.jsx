@@ -791,7 +791,10 @@ function ProfileScreen({ state, onKryos }) {
           const fcs=(facettesState)[fc.id]||{xp:0}; const fcR=getRank(fcs.xp||0); const isAct=fc.id===facetteId;
           return (
             <div key={fc.id} style={{ display:"flex",alignItems:"center",gap:9,padding:"6px 9px",borderRadius:4,background:isAct?`${fc.color}07`:"transparent",border:`1px solid ${isAct?fc.color+"15":"rgba(255,255,255,.03)"}`,marginBottom:5 }}>
-              <span style={{ color:isAct?fc.color:`${fc.color}44`,fontSize:13,minWidth:20 }}>{fc.icon}</span>
+              {fc.img
+                ? <img src={fc.img} alt="" style={{width:16,height:16,objectFit:"contain",minWidth:20,filter:isAct?"none":"grayscale(1) opacity(0.3)"}}/>
+                : <span style={{ color:isAct?fc.color:`${fc.color}44`,fontSize:13,minWidth:20 }}>{fc.icon}</span>
+              }
               <span style={{ color:isAct?fc.color:"rgba(255,255,255,.25)",fontSize:9,fontFamily:"'Orbitron',monospace",flex:1 }}>{fc.label}</span>
               <div style={{ width:55,height:2,background:"rgba(255,255,255,.05)",borderRadius:1,overflow:"hidden" }}>
                 <div style={{ height:"100%",width:`${Math.min((fcs.xp||0)/800*100,100)}%`,background:fc.color,boxShadow:`0 0 4px ${fc.color}`,borderRadius:1,transition:"width 1s ease" }}/>
@@ -1252,7 +1255,7 @@ function QuestsScreen({ state, onChangeFacette, onKryos }) {
           :<div style={{ display:"flex",flexDirection:"column",gap:6 }}>
             {FACETTES.filter(fc=>fc.id!==facetteId).map(fc=>(
               <button key={fc.id} onClick={()=>{onChangeFacette(fc.id);setShowSwitch(false);}} style={{ display:"flex",alignItems:"center",gap:11,padding:"9px 12px",background:`${fc.color}07`,border:`1px solid ${fc.color}2a`,borderRadius:4,cursor:"pointer",transition:"all .2s" }}>
-                <span style={{color:fc.color,fontSize:15}}>{fc.icon}</span>
+                {fc.img ? <img src={fc.img} alt="" style={{width:18,height:18,objectFit:"contain"}}/> : <span style={{color:fc.color,fontSize:15}}>{fc.icon}</span>}
                 <span style={{color:fc.color,fontSize:10,fontFamily:"'Orbitron',monospace"}}>{fc.label}</span>
                 <span style={{color:"rgba(255,255,255,.18)",fontSize:8,marginLeft:"auto"}}>{getRank((facettesState[fc.id]||{xp:0}).xp).id}</span>
               </button>
@@ -1984,7 +1987,7 @@ function SetupScreen({ onDone, onKryos }) {
                       border:`1px solid ${isSelected ? fc.color+"3a" : "rgba(255,255,255,.05)"}`,
                       borderRadius:6, cursor:"pointer", transition:"all .2s",
                       boxShadow: isSelected ? `0 0 16px ${fc.color}12` : "none" }}>
-                    <span style={{ fontSize:20, color:fc.color, minWidth:26 }}>{fc.icon}</span>
+                    {fc.img ? <img src={fc.img} alt="" style={{width:24,height:24,objectFit:"contain",minWidth:26}}/> : <span style={{ fontSize:20, color:fc.color, minWidth:26 }}>{fc.icon}</span>}
                     <div style={{ flex:1, textAlign:"left" }}>
                       <div style={{ color:isSelected?fc.color:"rgba(255,255,255,.55)", fontFamily:"'Orbitron',monospace", fontSize:12, letterSpacing:1, marginBottom:3 }}>{fc.label}</div>
                       <div style={{ color:"rgba(255,255,255,.2)", fontSize:10 }}>{fc.desc}</div>
