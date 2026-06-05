@@ -311,65 +311,6 @@ function GemFrog({ color="#00ffcc", size=120, mood="neutral" }) {
       }}
     />
   );
-}) {
-  const [blink, setBlink] = useState(false);
-  useEffect(() => {
-    const t = setInterval(() => { setBlink(true); setTimeout(() => setBlink(false), 140); }, 2800 + Math.random()*1800);
-    return () => clearInterval(t);
-  }, []);
-  const eyeR = blink ? 1 : 8;
-  const moods = { neutral:{mouth:"M 52 82 Q 60 88 68 82",py:0}, wise:{mouth:"M 50 81 Q 60 90 70 81",py:-1}, stern:{mouth:"M 52 84 Q 60 80 68 84",py:1}, proud:{mouth:"M 47 79 Q 60 93 73 79",py:-2}, curious:{mouth:"M 54 83 Q 60 89 66 83",py:-1} };
-  const m = moods[mood] || moods.neutral;
-  const id = color.replace("#","");
-  const rgb = color.slice(1).match(/.{2}/g).map(x=>parseInt(x,16)).join(",");
-  return (
-    <svg viewBox="0 0 120 130" width={size} height={size*1.08}
-      style={{filter:`drop-shadow(0 0 16px rgba(${rgb},.55)) drop-shadow(0 0 32px rgba(${rgb},.2))`}}>
-      <defs>
-        <radialGradient id={`bg${id}`} cx="42%" cy="32%" r="62%">
-          <stop offset="0%" stopColor={color} stopOpacity=".88"/><stop offset="45%" stopColor={color} stopOpacity=".55"/><stop offset="100%" stopColor="#060616" stopOpacity=".97"/>
-        </radialGradient>
-        <radialGradient id={`eg${id}`} cx="32%" cy="28%" r="65%">
-          <stop offset="0%" stopColor="white" stopOpacity=".95"/><stop offset="55%" stopColor={color} stopOpacity=".6"/><stop offset="100%" stopColor="#000" stopOpacity=".85"/>
-        </radialGradient>
-        <linearGradient id={`sh${id}`} x1="15%" y1="8%" x2="85%" y2="92%">
-          <stop offset="0%" stopColor="white" stopOpacity=".28"/><stop offset="50%" stopColor={color} stopOpacity=".08"/><stop offset="100%" stopColor="black" stopOpacity=".18"/>
-        </linearGradient>
-      </defs>
-      <ellipse cx="60" cy="126" rx="26" ry="4.5" fill={color} opacity=".1"/>
-      <ellipse cx="26" cy="104" rx="15" ry="9" fill={`url(#bg${id})`} opacity=".75" transform="rotate(-8 26 104)"/>
-      <ellipse cx="94" cy="104" rx="15" ry="9" fill={`url(#bg${id})`} opacity=".75" transform="rotate(8 94 104)"/>
-      <ellipse cx="18" cy="113" rx="11" ry="5.5" fill={color} opacity=".45" transform="rotate(-5 18 113)"/>
-      <ellipse cx="102" cy="113" rx="11" ry="5.5" fill={color} opacity=".45" transform="rotate(5 102 113)"/>
-      <polygon points="60,17 89,32 97,62 89,93 60,107 31,93 23,62 31,32" fill={`url(#bg${id})`}/>
-      <polygon points="60,17 89,32 74,54 46,54 31,32" fill={`url(#sh${id})`} opacity=".55"/>
-      <line x1="60" y1="17" x2="60" y2="107" stroke={color} strokeWidth=".4" opacity=".18"/>
-      <line x1="23" y1="62" x2="97" y2="62" stroke={color} strokeWidth=".4" opacity=".15"/>
-      <line x1="31" y1="32" x2="89" y2="93" stroke={color} strokeWidth=".3" opacity=".12"/>
-      <line x1="89" y1="32" x2="31" y2="93" stroke={color} strokeWidth=".3" opacity=".12"/>
-      <polygon points="60,17 89,32 97,62 89,93 60,107 31,93 23,62 31,32" fill="none" stroke={color} strokeWidth="1.1" opacity=".65"/>
-      <ellipse cx="60" cy="70" rx="21" ry="25" fill="rgba(255,255,255,.05)"/>
-      <ellipse cx="21" cy="71" rx="8" ry="13" fill={`url(#bg${id})`} opacity=".78" transform="rotate(-14 21 71)"/>
-      <ellipse cx="99" cy="71" rx="8" ry="13" fill={`url(#bg${id})`} opacity=".78" transform="rotate(14 99 71)"/>
-      <circle cx="15" cy="82" r="5" fill={color} opacity=".5"/>
-      <circle cx="105" cy="82" r="5" fill={color} opacity=".5"/>
-      <circle cx="42" cy="34" r="13" fill={`url(#bg${id})`}/><circle cx="78" cy="34" r="13" fill={`url(#bg${id})`}/>
-      <polygon points="42,21 55,31 55,41 42,47 29,41 29,31" fill="none" stroke={color} strokeWidth=".5" opacity=".35"/>
-      <polygon points="78,21 91,31 91,41 78,47 65,41 65,31" fill="none" stroke={color} strokeWidth=".5" opacity=".35"/>
-      <circle cx="42" cy="34" r={eyeR} fill={`url(#eg${id})`}/><circle cx="78" cy="34" r={eyeR} fill={`url(#eg${id})`}/>
-      {!blink && <><circle cx="42" cy={34+m.py} r="3.5" fill="#000" opacity=".92"/><circle cx="78" cy={34+m.py} r="3.5" fill="#000" opacity=".92"/><circle cx="40.5" cy={32+m.py} r="1.1" fill="white" opacity=".85"/><circle cx="76.5" cy={32+m.py} r="1.1" fill="white" opacity=".85"/></>}
-      <circle cx="42" cy="34" r="11" fill="none" stroke={color} strokeWidth=".5" opacity=".45"/><circle cx="78" cy="34" r="11" fill="none" stroke={color} strokeWidth=".5" opacity=".45"/>
-      <polygon points="60,23 65.5,29.5 60,36 54.5,29.5" fill={color} opacity=".95" style={{filter:`drop-shadow(0 0 5px ${color})`}}/>
-      <line x1="60" y1="23" x2="60" y2="36" stroke="white" strokeWidth=".5" opacity=".5"/>
-      <line x1="54.5" y1="29.5" x2="65.5" y2="29.5" stroke="white" strokeWidth=".5" opacity=".5"/>
-      <path d={m.mouth} fill="none" stroke={color} strokeWidth="1.6" strokeLinecap="round" opacity=".82"/>
-      <circle cx="57" cy="74" r="1.2" fill={color} opacity=".38"/><circle cx="63" cy="74" r="1.2" fill={color} opacity=".38"/>
-      {[[16,19],[104,24],[14,96],[106,91],[60,9]].map(([x,y],i)=>(
-        <g key={i}><line x1={x-4} y1={y} x2={x+4} y2={y} stroke={color} strokeWidth=".9" opacity=".35"/>
-        <line x1={x} y1={y-4} x2={x} y2={y+4} stroke={color} strokeWidth=".9" opacity=".35"/></g>
-      ))}
-    </svg>
-  );
 }
 
 // ═══════════════════════════════════════════════════════════
