@@ -1,0 +1,2903 @@
+import { useState, useEffect, useRef } from "react";
+
+// ═══════════════════════════════════════════════════════════
+// DATA
+// ═══════════════════════════════════════════════════════════
+const RANKS = [
+  { id:"E", minXP:0,   color:"#4b5563", title:"Corrompue",     rgb:"75,85,99" },
+  { id:"D", minXP:50,  color:"#22c55e", title:"Initiée",       rgb:"34,197,94" },
+  { id:"C", minXP:150, color:"#3b82f6", title:"Intégrée",      rgb:"59,130,246" },
+  { id:"B", minXP:300, color:"#a855f7", title:"Maîtrisée",     rgb:"168,85,247" },
+  { id:"A", minXP:500, color:"#f59e0b", title:"Transcendante", rgb:"245,158,11" },
+  { id:"S", minXP:800, color:"#ef4444", title:"Légendaire",    rgb:"239,68,68" },
+];
+// Gemme globale — basée sur le nb de facettes Rang A+ et S
+// Score = nb facettes rang A (1pt chacune) + rang S (2pts chacune)
+// Max score = 12 (6 facettes S = 12pts)
+const GLOBAL_RANKS = [
+  { id:"E",   minScore:0,  color:"#4b5563", title:"Corrompue",    rgb:"75,85,99" },
+  { id:"D",   minScore:1,  color:"#22c55e", title:"Éveillée",     rgb:"34,197,94" },
+  { id:"C",   minScore:2,  color:"#3b82f6", title:"Façonnée",     rgb:"59,130,246" },
+  { id:"B",   minScore:3,  color:"#a855f7", title:"Affinée",      rgb:"168,85,247" },
+  { id:"A",   minScore:4,  color:"#f59e0b", title:"Rayonnante",   rgb:"245,158,11" },
+  { id:"S",   minScore:6,  color:"#ef4444", title:"Légendaire",   rgb:"239,68,68" },
+  { id:"SS",  minScore:8,  color:"#ff00ff", title:"Transcendante",rgb:"255,0,255" },
+  { id:"SSS", minScore:12, color:"#ffffff", title:"Absolue",      rgb:"255,255,255" },
+];
+const getGlobalScore = (facettesState={}) => {
+  return FACETTES.reduce((score, f) => {
+    const rank = getRank((facettesState[f.id]||{xp:0}).xp);
+    if (rank.id === "S") return score + 2;
+    if (rank.id === "A") return score + 1;
+    return score;
+  }, 0);
+};
+const getGlobalRank = (facettesState={}) => {
+  const score = getGlobalScore(facettesState);
+  return [...GLOBAL_RANKS].reverse().find(r => score >= r.minScore) || GLOBAL_RANKS[0];
+};
+const getNextGlobalRank = (facettesState={}) => {
+  const score = getGlobalScore(facettesState);
+  return GLOBAL_RANKS.find(r => r.minScore > score);
+};
+const FACETTES = [
+  { id:"athlete",      label:"Athlète",      icon:"⚡", color:"#00ffcc", rgb:"0,255,204",   stat:"VIT", desc:"Corps forgé, énergie maîtrisée" },
+  { id:"createur",     label:"Créateur",     icon:"✦",  color:"#ff6eb4", rgb:"255,110,180", stat:"CRE", desc:"Vision manifestée, art vivant" },
+  { id:"entrepreneur", label:"Entrepreneur", icon:"◈",  color:"#ffd700", rgb:"255,215,0",   stat:"STR", desc:"Empire bâti, richesse créée" },
+  { id:"sage",         label:"Sage",         icon:"◎",  color:"#a78bfa", rgb:"167,139,250", stat:"INT", desc:"Sagesse profonde, paix intérieure" },
+  { id:"explorateur",  label:"Explorateur",  icon:"✧",  color:"#38bdf8", rgb:"56,189,248",  stat:"AGI", desc:"Horizons repoussés, vie vécue" },
+  { id:"guerrier",     label:"Guerrier",     icon:"⚔",  color:"#f97316", rgb:"249,115,22",  stat:"FOR", desc:"Mental d'acier, résilience totale" },
+];
+const VOTES_DATA = {
+  athlete:      [{label:"Séance de sport",      xp:15,icon:"⚡"},{label:"Sommeil 8h",          xp:10,icon:"🌙"},{label:"Repas sain",          xp:8,icon:"🍃"},{label:"Hydratation 2L",      xp:5,icon:"💧"},{label:"Mobilité / stretch",  xp:7,icon:"🔥"}],
+  createur:     [{label:"Création 30min",        xp:15,icon:"✦"},{label:"Publier / partager",   xp:12,icon:"📡"},{label:"Lecture / inspiration",xp:8,icon:"📖"},{label:"Protéger son flow",   xp:10,icon:"🛡"},{label:"Journaling créatif",  xp:7,icon:"✍"}],
+  entrepreneur: [{label:"Tâche haute valeur",    xp:15,icon:"💎"},{label:"Prospection",          xp:12,icon:"⚡"},{label:"Revue métriques",     xp:8,icon:"📊"},{label:"Apprendre",           xp:8,icon:"🧠"},{label:"Bloquer distractions",xp:7,icon:"🔒"}],
+  sage:         [{label:"Méditation",            xp:15,icon:"◎"},{label:"Lecture profonde",     xp:12,icon:"📜"},{label:"Journaling",          xp:10,icon:"✍"},{label:"Temps en nature",     xp:8,icon:"🌿"},{label:"Silence intentionnel",xp:7,icon:"🌑"}],
+  explorateur:  [{label:"Nouvelle expérience",   xp:15,icon:"✧"},{label:"Sortir routine",       xp:12,icon:"🌀"},{label:"Curiosité cultivée",  xp:8,icon:"🔍"},{label:"Rencontre humaine",   xp:10,icon:"🤝"},{label:"Documenter",          xp:7,icon:"📝"}],
+  guerrier:     [{label:"Défi inconfortable",    xp:15,icon:"⚔"},{label:"Résister tentation",  xp:12,icon:"🛡"},{label:"Focus 90min",         xp:10,icon:"🎯"},{label:"Affronter une peur", xp:15,icon:"🔥"},{label:"Récupération active", xp:7,icon:"⚡"}],
+};
+const AURELIS = [
+  "Quelle valeur dois-je honorer aujourd'hui ?","Est-ce que j'agis depuis la peur ou la force ?",
+  "Qu'est-ce que je fuis en ce moment ?","Si ma version la plus haute me regardait — que verrait-elle ?",
+  "Qu'est-ce qui est authentique vs ce qui est de l'ego ?","Quelle habitude me coûte le plus cher en silence ?",
+  "Suis-je en train de polir la bonne facette ?","Est-ce que je me bats pour quelque chose ou contre quelque chose ?",
+  "Quelle décision j'évite depuis trop longtemps ?","Est-ce que je me mens sur quelque chose en ce moment ?",
+  "Qu'est-ce que je ferais si je n'avais pas peur du jugement ?","Quelle partie de moi résiste le plus à cette transformation ?",
+  "Est-ce que mes actions d'aujourd'hui sont alignées avec qui je veux être ?",
+  "Qu'est-ce que j'accepte dans ma vie mais que je ne devrais plus accepter ?",
+  "Est-ce que je cherche à impressionner ou à incarner ?",
+  "Quelle pensée récurrente m'empêche d'avancer ?","Qu'est-ce qui occupe mon énergie sans me nourrir ?",
+  "Si j'avais 6 mois à vivre, est-ce que je ferais la même chose aujourd'hui ?",
+  "Quel serait mon plus grand regret si je continuais comme maintenant ?",
+  "Quelle croyance sur moi-même me limite le plus ?","Est-ce que je suis en train de construire ou de maintenir ?",
+  "Qu'est-ce que j'attendrais de moi si j'étais mon propre mentor ?",
+  "Quelle émotion j'évite le plus souvent ?","Est-ce que je vis ou est-ce que je survie en ce moment ?",
+  "Qu'est-ce que le silence révèle que le bruit cache ?",
+  "Qui dans mon entourage m'élève ? Qui me pèse ?",
+  "Est-ce que mon environnement soutient ou sabote ma transformation ?",
+  "Qu'est-ce que j'aurais besoin de dire à quelqu'un et que je ne dis pas ?",
+  "Est-ce que je donne plus que je ne reçois, ou l'inverse ?",
+  "Qui j'aimerais être pour les personnes que j'aime ?",
+  "Comment mon corps se sent-il aujourd'hui — vraiment ?","Est-ce que je récupère autant que je produis ?",
+  "Quelle habitude physique me coûte de l'énergie mentale ?",
+  "Est-ce que je respecte mon corps comme un outil ou comme un temple ?",
+  "Qu'est-ce que j'ai besoin de relâcher physiquement ?",
+  "Dans 5 ans, quelle version de moi vais-je remercier pour ce que je fais aujourd'hui ?",
+  "Est-ce que ma vision est assez grande pour me faire peur ?",
+  "Qu'est-ce que je construis qui survivra après moi ?",
+  "Est-ce que je joue à être grand·e ou est-ce que je joue réellement grand ?",
+  "Quelle opportunité est devant moi que je refuse de voir ?",
+  "Est-ce que je suis à ma place ou est-ce que je me cache dans le confort ?",
+  "Quel impact est-ce que je veux avoir sur les gens autour de moi ?",
+  "Est-ce que mon ambition vient de moi ou de ce que les autres attendent ?",
+  "Quelle action répétée m'a le plus éloigné·e de qui je veux être ?",
+  "Quelle micro-habitude pourrait changer le plus de choses si je la tenais 90 jours ?",
+  "Est-ce que je fais des choix ou des habitudes en ce moment ?",
+  "Quelle résistance j'ai surmontée récemment dont je suis fier·ère ?",
+  "Est-ce que j'agis par défaut ou par intention ?",
+  "Qui suis-je quand personne ne me regarde ?",
+  "Quelle partie de mon ancienne identité dois-je laisser derrière ?",
+  "Est-ce que je me définis par ce que je fais ou par ce que je suis ?",
+  "Qu'est-ce qui resterait de moi si on enlevait tout ce que je possède ?",
+  "Quelle identité suis-je en train de choisir par mes actions d'aujourd'hui ?",
+  "Est-ce que je suis la même personne seul·e et en public ?",
+  "Quelle version de moi dois-je mettre à la retraite aujourd'hui ?",
+  "Qu'est-ce que j'ai aujourd'hui que je ne valorise pas assez ?",
+  "Quel moment de la semaine passée m'a le plus rappelé qui je veux être ?",
+  "Qu'est-ce que j'ai appris sur moi-même ces derniers jours ?",
+  "Qu'est-ce qui était difficile il y a 3 mois et qui est devenu naturel ?",
+  "Quel obstacle récurrent est en réalité une leçon déguisée ?",
+  "Est-ce que j'utilise mes contraintes comme excuses ou comme terrain d'entraînement ?",
+  "Qu'est-ce que le dernier échec m'a appris sur moi-même ?",
+  "Est-ce que je cherche le confort ou la croissance en ce moment ?",
+  "Quelle difficulté actuelle me rendra plus fort·e dans 6 mois ?",
+  "Est-ce que je suis présent·e dans ce que je fais, ou juste présent·e ?",
+  "Quelle partie de ma journée ai-je vécue pleinement aujourd'hui ?",
+  "Est-ce que mon esprit est dans le passé, le futur, ou maintenant ?",
+  "Qu'est-ce que ce moment m'enseigne si je l'écoute vraiment ?",
+  "Qu'est-ce que la mort m'apprend sur la façon dont je vis ?",
+  "Si je devais définir le succès sans argent ni statut — à quoi il ressemblerait ?",
+  "Qu'est-ce que je veux vraiment, pas ce que je pense devoir vouloir ?",
+  "Quel serait l'acte le plus courageux que je pourrais accomplir cette semaine ?",
+  "Est-ce que je construis une vie ou une image de vie ?",
+  "Qu'est-ce qui me rend vraiment vivant·e ?",
+  "Si j'étais déjà la personne que je veux devenir — qu'est-ce que je ferais différemment aujourd'hui ?",
+  "Quelle question est-ce que j'évite de me poser depuis trop longtemps ?",
+  "Est-ce que mes priorités déclarées et mes actions réelles sont alignées ?",
+  "Qu'est-ce que je ferais aujourd'hui si j'avais toute confiance en moi ?",
+  "Quelle peur me déguise-t-elle en raison logique ?",
+  "Est-ce que je joue un rôle ou est-ce que j'existe pleinement ?",
+  "Qu'est-ce que j'ai sacrifié que je ne veux plus sacrifier ?",
+  "Quelle version de ma journée idéale ressemble à qui je veux être ?",
+  "Est-ce que je me traite avec la même bienveillance que j'offre aux autres ?",
+];
+const getNextAurele = (used = []) => {
+  const rem = AURELIS.filter(q => !used.includes(q));
+  const pool = rem.length > 0 ? rem : AURELIS;
+  return pool[Math.floor(Math.random() * pool.length)];
+};
+
+const KRYOS_DAILY = {
+  athlete:["Ton corps est le hardware. Tout le reste est software. Entraîne le hardware.","La fatigue ce matin ? C'est de la myéline en train de se former.","Les athlètes s'entraînent même quand ils n'en ont pas envie. C'est ça la différence.","Vote pour le corps que tu veux avoir dans 90 jours.","Les plateaux sont des périodes de consolidation, pas d'échec."],
+  createur:["La créativité n'attend pas l'inspiration. Elle la crée.","Publier imparfait aujourd'hui vaut mieux que perfectionner éternellement.","Chaque création laisse une trace dans le monde.","La peur du jugement est inversement proportionnelle au nombre d'œuvres créées.","Ton flux créatif est un muscle. Il s'atrophie sans usage."],
+  entrepreneur:["Les entrepreneurs qui réussissent travaillent sur les bonnes choses.","Une tâche haute valeur vaut 10 tâches secondaires. Laquelle aujourd'hui ?","L'empire se construit un vote à la fois.","La prospection n'est pas une option. C'est le sang de l'entreprise.","Les métriques que tu ne regardes pas existent quand même."],
+  sage:["La sagesse n'est pas l'accumulation de connaissances. C'est l'intégration.","Le silence : l'espace où la pensée devient claire.","Ce que tu lis façonne ton cerveau autant que ce que tu manges façonne ton corps.","La méditation n'est pas une fuite. C'est un entraînement à être présent.","Aujourd'hui, observe avant de réagir. Une fois. Vois ce que ça change."],
+  explorateur:["La zone de confort est la zone de stagnation.","Qu'est-ce que tu n'as jamais fait et qui t'attire ? Fais-le.","Les meilleures histoires commencent par 'un jour j'ai décidé...'","La curiosité non satisfaite se transforme en regret.","L'inconfort que tu ressens — c'est la direction dans laquelle aller."],
+  guerrier:["La résistance est proportionnelle à la croissance disponible.","Aujourd'hui, fais une chose que tu évites. Une seule.","Le mental se forge comme le corps : par la résistance progressive.","La peur est une boussole. Elle pointe vers ce qui compte.","Un guerrier cherche la difficulté qui le fait grandir."],
+};
+
+const BOSS_LIST = ["Jeûne de 16h","2h de création sans interruption","Contacter 5 personnes clés","Méditation 30min + journaling 1h","Sortir totalement de ta zone de confort","Aucun écran avant midi","Entraînement double session"];
+const VALEURS_CATEGORIES = [
+  { cat:"IDENTITÉ", color:"#00ffcc", vals:["Authenticité","Intégrité","Courage","Dignité","Indépendance","Fierté","Originalité","Singularité"] },
+  { cat:"FORCE", color:"#f97316", vals:["Discipline","Résilience","Persévérance","Maîtrise de soi","Détermination","Endurance","Audace","Rigueur"] },
+  { cat:"RELATION", color:"#ff6eb4", vals:["Famille","Amour","Amitié","Loyauté","Générosité","Empathie","Connexion","Présence"] },
+  { cat:"CROISSANCE", color:"#a78bfa", vals:["Sagesse","Apprentissage","Curiosité","Évolution","Humilité","Créativité","Vision","Excellence"] },
+  { cat:"IMPACT", color:"#ffd700", vals:["Impact","Service","Leadership","Héritage","Justice","Contribution","Influence","Responsabilité"] },
+  { cat:"ÊTRE", color:"#38bdf8", vals:["Paix","Liberté","Équilibre","Santé","Abondance","Gratitude","Joie","Plénitude"] },
+];
+const VALEURS = VALEURS_CATEGORIES.flatMap(c=>c.vals);
+
+const PRE_IDENTITES = {
+  athlete: [
+    "Je suis quelqu'un qui prend soin de son corps comme de son arme principale.",
+    "Je suis quelqu'un dont l'énergie physique est la fondation de tout le reste.",
+    "Je suis un·e athlète — mon corps est un projet permanent.",
+    "Je suis quelqu'un qui se dépasse physiquement pour forger son mental.",
+    "Je suis quelqu'un qui honore son corps par la discipline quotidienne.",
+  ],
+  createur: [
+    "Je suis quelqu'un qui transforme ses idées en œuvres concrètes.",
+    "Je suis quelqu'un dont la créativité est un muscle qu'on entraîne chaque jour.",
+    "Je suis un·e créateur·rice — je produis, je partage, je laisse une trace.",
+    "Je suis quelqu'un qui crée même quand il/elle n'en a pas envie.",
+    "Je suis quelqu'un dont la voix intérieure mérite d'exister dans le monde.",
+  ],
+  entrepreneur: [
+    "Je suis quelqu'un qui construit quelque chose qui existera après moi.",
+    "Je suis quelqu'un qui transforme la valeur créée en impact économique réel.",
+    "Je suis un·e entrepreneur·e — chaque journée est un investissement dans mon empire.",
+    "Je suis quelqu'un qui pense en termes de systèmes, pas de tâches.",
+    "Je suis quelqu'un dont la vision dépasse largement sa situation actuelle.",
+  ],
+  sage: [
+    "Je suis quelqu'un qui cherche à comprendre avant d'agir.",
+    "Je suis quelqu'un dont la paix intérieure est la richesse première.",
+    "Je suis un·e sage — je cultive la clarté mentale comme d'autres cultivent la force.",
+    "Je suis quelqu'un qui observe le monde avec curiosité et sans jugement hâtif.",
+    "Je suis quelqu'un qui sait que la sagesse s'acquiert dans le silence autant que dans l'action.",
+  ],
+  explorateur: [
+    "Je suis quelqu'un pour qui chaque jour est une opportunité d'expérimenter.",
+    "Je suis quelqu'un qui refuse de mourir sans avoir vraiment vécu.",
+    "Je suis un·e explorateur·rice — l'inconfort est mon territoire naturel.",
+    "Je suis quelqu'un qui apprend en faisant, pas en attendant d'être prêt·e.",
+    "Je suis quelqu'un dont la vie est une collection d'expériences intentionnelles.",
+  ],
+  guerrier: [
+    "Je suis quelqu'un qui fait face à ce que les autres fuient.",
+    "Je suis quelqu'un dont le mental est forgé dans la résistance quotidienne.",
+    "Je suis un·e guerrier·ère — la difficulté est mon entraînement, pas mon ennemi.",
+    "Je suis quelqu'un qui choisit délibérément l'inconfort pour grandir.",
+    "Je suis quelqu'un dont la volonté est l'arme la plus redoutable.",
+  ],
+};
+
+const NOYAU_DIALOGUE = {
+  title: "POURQUOI LE NOYAU ?",
+  mood: "wise",
+  lines: [
+    "Avant de choisir une facette à polir, tu dois faire quelque chose que la plupart ignorent.",
+    "Identifier ton noyau.",
+    "Le noyau, c'est l'ensemble de tes valeurs profondes — ce qui reste quand tout le reste s'effondre.",
+    "Voici pourquoi c'est critique psychologiquement.",
+    "La 'self-determination theory' de Deci et Ryan montre que la motivation durable vient uniquement des comportements alignés avec nos valeurs intrinsèques.",
+    "Si tu choisis une facette qui n'est pas connectée à ce qui compte vraiment pour toi — tu poliras une gemme qui n'est pas la tienne.",
+    "Des semaines d'effort pour incarner une identité qui sonne faux. C'est le scénario le plus douloureux.",
+    "Le noyau est aussi une ancre en période de difficulté. Quand l'énergie baisse, quand le doute monte — ce sont tes valeurs qui te rappellent pourquoi tu continues.",
+    "Choisis celles qui résonnent vraiment. Pas celles qui impressionnent. Pas celles que tu penses devoir avoir.",
+    "Celles qui te font dire : 'Oui. C'est ça. C'est moi.'",
+    "Prends le temps qu'il faut. C'est la décision la plus importante de ce protocole.",
+  ]
+};
+
+// ═══════════════════════════════════════════════════════════
+// KRYOS DIALOGUES
+// ═══════════════════════════════════════════════════════════
+const DIALOGUES = {
+  welcome: { title:"PREMIÈRE RENCONTRE", mood:"wise", lines:["Ah. Te voilà.","Je vais être direct. Je n'ai pas de temps pour les discours motivationnels creux.","Tu es ici parce que quelque chose ne fonctionne pas. Des habitudes que tu reprends. Des objectifs que tu abandonnes. Une version de toi que tu n'arrives pas à incarner durablement.","Le problème n'est pas ta discipline. Le problème est ton approche.","Voici ce que la neuroscience dit : ton cerveau est gouverné par un principe appelé la 'cohérence identitaire'. Il cherche en permanence à agir en accord avec qui il pense être.","Si tu te vois comme quelqu'un de sédentaire — ton cerveau sabote chaque tentative sportive. Pas par faiblesse. Par cohérence.","La majorité des méthodes attaquent les comportements. 'Fais 30 minutes de sport.' 'Mange mieux.' Ça marche 6 semaines. Puis l'identité profonde reprend le dessus.","Ce protocole attaque l'identité en premier.","Comment ? Par ce que les psychologues appellent les 'identity-based votes'. Chaque action que tu accomplis est un vote pour une certaine version de toi.","Un vote ne décide pas d'une élection. Mais 50 votes... 100 votes... et ton cerveau recode qui tu es. Pas par affirmation. Par preuve.","C'est ça, la Gemme Vitale. Tu choisis une facette identitaire. Tu votes pour elle chaque jour. Pendant 90 jours.","Pourquoi 90 jours ? Les études en neuroplasticité montrent qu'une identité comportementale prend entre 66 et 90 jours pour se stabiliser. Pas 21. C'est un mythe.","La gemme, c'est toi. Brute. Avec des facettes corrompues — des patterns qui ne te servent pas. Et des facettes à polir — des identités à incarner.","On travaille une facette à la fois. Parce que la dispersion cognitive détruit la volonté. Le focus la multiplie.","Alors. Quelle facette veux-tu polir en premier ?"] },
+  rank_D: { title:"RANG D — INITIATION", mood:"curious", lines:["Rang D.","Tu penses que c'est peu. Je vois ça sur ta tête.","Laisse-moi te donner un chiffre : 92% des personnes qui commencent un programme de changement abandonnent dans les 3 premières semaines.","Tu es dans les 8%.","Voici ce qui se passe neurologiquement : chaque vote a activé ton système de récompense dopaminergique. Ton cerveau associe maintenant cette facette à une récompense.","C'est le début de la boucle habitude : signal → routine → récompense. Tu viens de graver les premiers sillons.","Attention — à ce stade, ton identité est encore fragile. Une semaine d'arrêt et le circuit se démantèle.","Ce n'est pas un jugement. C'est de la biologie.","Continue à voter. Chaque vote rend le prochain plus facile. C'est la loi de la myélinisation — les connexions neuronales se renforcent par répétition.","Tu construis de l'autoroute là où il y avait un chemin de terre."] },
+  rank_C: { title:"RANG C — INTÉGRATION", mood:"wise", lines:["Rang C. L'intégration.","Je vais te poser une question. Est-ce que tu remarques que certains votes sont devenus... moins difficiles ?","C'est la 'cognitive ease'. Ton cerveau a créé des raccourcis pour ces comportements. Il consomme moins d'énergie pour les exécuter.","C'est exactement ce qu'on cherche.","Il y a un concept en psychologie appelé la 'self-perception theory' de Daryl Bem. Il dit : on infère qui on est en observant ses propres comportements.","Autrement dit — ton cerveau se convainc lui-même. Tu n'as pas besoin d'y croire au départ. Tu as juste besoin de voter.","À ce stade, ton environnement social commence aussi à s'ajuster. Les gens modifient leurs attentes vis-à-vis de toi.","Ce feedback externe renforce le feedback interne. C'est une spirale ascendante.","Continue. Tu es à mi-chemin de l'ancrage profond."] },
+  rank_B: { title:"RANG B — MAÎTRISE", mood:"proud", lines:["Rang B.","Je dois admettre quelque chose.","La plupart des gens que je rencontre ne vont pas aussi loin. Pas par manque de capacité. Par manque de structure.","Voici ce que tu as traversé psychologiquement : la 'valley of despair'. La période entre l'enthousiasme du début et l'automatisation réelle.","C'est là que 80% des gens abandonnent. Pas au début. Au milieu. Quand c'est devenu banal mais pas encore automatique.","Toi tu l'as traversée.","À ce stade, ton identité commence à influencer tes décisions sans effort conscient. Les psychologues appellent ça le 'identity salience'.","Cette facette est devenue une partie de ton self-concept core.","Le Rang A est proche. C'est là que tout devient différent."] },
+  rank_A: { title:"RANG A — TRANSCENDANCE", mood:"proud", lines:["Arrête-toi une seconde.","Rang A.","Je vais te parler de quelque chose que peu de gens comprennent.","Il existe en psychologie le concept de 'possible self' — le soi possible. La représentation mentale de qui tu pourrais devenir.","Les recherches de Hazel Markus montrent que les 'possible selves' les plus motivants sont ceux qui semblent atteignables. Ni trop proches, ni trop lointains.","Quand tu as commencé, le Rang S semblait abstrait. Maintenant il est dans ton champ de vision réel.","Ton cerveau a mis à jour ton soi possible. Et ça change tout — tes décisions, ton attention, tes opportunités perçues.","Il y a aussi un autre phénomène : le 'behavioral spillover'. Une identité forte dans un domaine contamine positivement les autres.","Tu l'as peut-être remarqué. Des changements dans des domaines que tu n'as pas travaillés directement.","C'est la gemme qui commence à rayonner.","Une seule facette te sépare du Rang S. Ce qui t'attend de l'autre côté n'est pas une récompense. C'est une transformation."] },
+  rank_S: { title:"RANG S — LÉGENDAIRE", mood:"proud", lines:["...","...","Rang S.","Je vais te dire quelque chose que je ne dis presque jamais.","Ce que tu viens d'accomplir a une base scientifique précise. Les chercheurs appellent ça un 'identity shift' — un changement d'identité profond.","Ce n'est pas une habitude. Une habitude peut disparaître. Une identité ancrée résiste au stress, à la fatigue, aux périodes difficiles.","Parce qu'elle n'est plus dans la mémoire explicite. Elle est dans la mémoire procédurale. Automatique. Profonde.","Tu ne fais plus ces choses parce que tu t'y obliges. Tu les fais parce que ne pas les faire créerait une dissonance identitaire.","Ton cerveau défend cette identité maintenant.","Cette facette est permanente.","Il y en a d'autres qui attendent. La gemme n'est jamais finie. Elle est juste... de plus en plus lumineuse.","Tu sais maintenant que tu en es capable. Ça — personne ne peut te l'enlever."] },
+  first_vote: { title:"PREMIER VOTE", mood:"curious", lines:["Un vote.","Minuscule, non ?","Mais voilà ce que ton cerveau vient de faire : une micro-dose de dopamine associée à l'accomplissement.","Ce n'est pas anodin. C'est le début d'une boucle de renforcement.","Les neuroscientifiques ont montré que même les plus petites actions cohérentes avec une identité cible activent le cortex préfrontal médian — la zone associée au 'soi'.","Ton cerveau vient de mettre un premier fichier dans le dossier 'qui je suis'.","Un fichier ne fait pas un dossier. Mais c'est le premier.","Reviens demain."] },
+  streak_3: { title:"STREAK 3 JOURS", mood:"curious", lines:["Trois jours consécutifs.","Je sais que ça semble peu. Laisse-moi te convaincre du contraire.","Il y a un biais cognitif appelé le 'completion effect'. Notre cerveau ressent une pression inconsciente à compléter les séquences commencées.","En créant un streak, tu as activé ce biais en ta faveur. Briser la série va maintenant créer un inconfort psychologique.","Tu as transformé la motivation externe en contrainte interne.","C'est exactement le mécanisme qu'on cherche. La discipline extérieure coûte de l'énergie. La contrainte identitaire... s'auto-alimente.","Ne brise pas le fil."] },
+  streak_7: { title:"7 JOURS CONSÉCUTIFS", mood:"wise", lines:["Sept jours.","Tu veux savoir ce qui se passe réellement dans ton cerveau en ce moment ?","Les axones liés à ces comportements sont en cours de myélinisation. La myéline est une gaine isolante qui accélère la transmission des signaux nerveux.","Plus tu votes, plus cette gaine s'épaissit. Plus le comportement devient rapide, précis, automatique.","C'est littéralement de la biologie en train de se remodeler.","7 jours ne suffisent pas pour l'ancrage complet — ne te fais pas d'illusions. Mais c'est suffisant pour que le circuit existe.","Maintenant il s'agit de l'épaissir."] },
+  boss_defeated: { title:"BOSS VAINCU", mood:"stern", lines:["Ha.","Tu as relevé le défi.","Voici pourquoi c'est important psychologiquement : les défis difficiles créent des 'peak experiences' — des expériences saillantes.","Ton cerveau encode ces moments avec plus d'émotion, plus de clarté, plus de permanence mémorielle qu'une action routinière.","C'est aussi un test du 'self-efficacy' — la croyance en ta propre capacité. Chaque défi relevé augmente cette croyance.","Et une haute self-efficacy prédit mieux la persistance dans le changement que la motivation ou la discipline.","Tu viens d'investir dans ta croyance en toi-même.","Bien joué."] },
+  votes_50: { title:"50 VOTES", mood:"proud", lines:["Cinquante votes.","Tu as passé quelque chose d'important.","Phillippa Lally de l'UCL a montré que le point d'inflexion comportemental se situe en moyenne autour de 66 répétitions.","Tu approches du seuil où le comportement devient semi-automatique.","Mais voici ce que j'observe chez toi, qui est peut-être plus important.","Tu n'as probablement plus besoin de te convaincre autant. Le 'pourquoi je fais ça' est devenu moins pressant.","C'est la signature d'un changement identitaire en cours. L'identité n'a pas besoin de justification. Elle agit par nature.","La personne sédentaire se demande pourquoi elle devrait faire du sport. L'athlète se demande pourquoi elle ne le ferait pas.","Tu glisses vers la deuxième catégorie."] },
+  votes_100: { title:"100 VOTES", mood:"proud", lines:["Cent votes.","Je vais t'être honnête — quand tu as commencé, j'avais des doutes.","Pas sur ta capacité. Sur ta persistance. Parce que la persistance ne se prédit pas au départ.","Cent votes, c'est la preuve empirique que cette identité t'appartient.","En psychologie, c'est la 'behavioral confirmation' — quand tu agis suffisamment de fois en accord avec une identité, cette identité devient une croyance stable et résistante.","Elle résiste aux mauvaises journées. Au manque de motivation. Au doute.","Parce qu'elle n'est plus basée sur une aspiration. Elle est basée sur 100 preuves concrètes.","Ton cerveau ne peut pas argumenter contre 100 preuves.","L'identité est ancrée."] },
+  aurelis_answered: { title:"AURÈLE A PARLÉ", mood:"wise", lines:["Tu as répondu à la question intérieure.","Je vais t'expliquer pourquoi c'est plus important que tu ne le penses.","Il existe la 'self-discrepancy theory' de Tory Higgins. La souffrance psychologique vient de l'écart entre le soi actuel et le soi idéal.","Mais beaucoup polissent le mauvais soi idéal. Celui que la société attend. Celui de l'ego. Pas celui aligné avec leurs valeurs profondes.","Aurèle est là pour ça. T'obliger à regarder : est-ce que je polis la bonne facette ?","Les recherches en psychologie positive montrent que le bien-être durable vient de la congruence — l'alignement entre ce qu'on fait et qui on est vraiment.","Tu viens de vérifier ton alignement.","C'est rare. Et courageux."] },
+  sommeil_logged: { title:"SOMMEIL ENREGISTRÉ", mood:"neutral", lines:["Le sommeil. Enfin tu le loggues.","Je vais te donner des chiffres parce que les humains sous-estiment systématiquement ce qu'ils ne voient pas.","Une nuit à 6h de sommeil pendant 10 jours produit des déficits cognitifs équivalents à 24h de privation totale. Mais tu ne le ressens pas — ton cerveau s'adapte à sa propre dégradation.","Matthew Walker, neuroscientifique à Berkeley : 'Il n'y a pas un seul organe dans le corps qui ne soit pas amélioré par le sommeil.'","Pour ce protocole spécifiquement : la consolidation mémorielle des nouvelles habitudes se fait pendant le sommeil profond. Couper le sommeil, c'est couper le processus de consolidation.","Tu sapes ta propre progression sans t'en rendre compte.","Le sommeil n'est pas un luxe. C'est l'infrastructure."] },
+  energie_low: { title:"ÉNERGIE BASSE", mood:"stern", lines:["Énergie basse.","Je ne vais pas te dire 'ça va aller'. Je vais te dire ce qui se passe.","Le glucose préfrontal — le carburant de ta volonté — est épuisé. Roy Baumeister appelle ça l'ego depletion. Ta capacité à résister, décider, persister est littéralement diminuée.","Dans cet état, ton cerveau cherche le chemin de moindre résistance. Il va essayer de te ramener à tes anciens patterns.","Ce n'est pas toi qui es faible. C'est ta biochimie qui est à plat.","Voici ce que tu fais : tu trouves le vote le plus petit. Pas le plus impactant. Le plus petit. Juste pour garder le circuit actif.","Un vote symbolique vaut mieux que zéro. Zéro dit à ton cerveau que c'est acceptable d'arrêter.","Récupère cette nuit. Demain tu repars."] },
+  facette_changed: { title:"NOUVELLE FACETTE", mood:"wise", lines:["Tu as activé une nouvelle facette.","Écoute-moi bien avant de continuer.","La facette que tu viens de maîtriser — elle est permanente. Les circuits neuronaux associés à cette identité sont myélinisés. Ils existent physiquement dans ton cerveau.","Cette nouvelle facette. Tu es au Rang E. Elle semble corrompue, lointaine, peut-être même fausse.","C'est normal. C'est exactement ce que ressent quelqu'un qui commence.","Mais tu as un avantage que tu n'avais pas la première fois.","Tu as la preuve que ça fonctionne. C'est ce qu'en psychologie on appelle le 'mastery experience' — le facteur le plus puissant pour construire la self-efficacy.","Tu sais désormais, empiriquement, que tu peux transformer une identité corrompue en identité ancrée.","Utilise cette certitude. C'est ton arme la plus puissante.","Commence à voter."] },
+  noyau_why: { title:"POURQUOI LE NOYAU ?", mood:"wise", lines:["Avant de choisir une facette à polir, tu dois faire quelque chose que la plupart ignorent.","Identifier ton noyau.","Le noyau, c'est l'ensemble de tes valeurs profondes — ce qui reste quand tout le reste s'effondre.","Voici pourquoi c'est critique psychologiquement.","La 'self-determination theory' de Deci et Ryan montre que la motivation durable vient uniquement des comportements alignés avec nos valeurs intrinsèques.","Si tu choisis une facette qui n'est pas connectée à ce qui compte vraiment pour toi — tu poliras une gemme qui n'est pas la tienne.","Des semaines d'effort pour incarner une identité qui sonne faux. C'est le scénario le plus douloureux.","Le noyau est aussi une ancre en période de difficulté. Quand l'énergie baisse, quand le doute monte — ce sont tes valeurs qui te rappellent pourquoi tu continues.","Choisis celles qui résonnent vraiment. Pas celles qui impressionnent. Pas celles que tu penses devoir avoir.","Celles qui te font dire : 'Oui. C'est ça. C'est moi.'","Prends le temps qu'il faut. C'est la décision la plus importante de ce protocole."] },
+  daily_start: { title:"NOUVELLE JOURNÉE", mood:"neutral", lines:["Nouvelle journée.","Avant de commencer — rappel rapide.","Le rituel d'intention matinal active ce qu'on appelle l''implementation intention'. Peter Gollwitzer à NYU a montré que formuler 'je suis X' avant d'agir double la probabilité de passer à l'action.","Alors : qui es-tu aujourd'hui ?","Dis-le. Même en silence. Surtout en silence.","Puis va voter."] },
+  day_close: { title:"JOURNÉE SCELLÉE", mood:"proud", lines:["Tu as scellé cette journée.","Chaque vote est une preuve supplémentaire pour ton cerveau.","Le sommeil qui suit consolide ces nouvelles connexions neuronales.","Demain, le comportement sera légèrement plus facile. C'est la myélinisation progressive.","Repos maintenant. Tu as fait ce qu'il fallait."] },
+  streak_broken: { title:"STREAK BRISÉ", mood:"stern", lines:["Le streak est brisé.","Je vais être direct.","Ce n'est pas une catastrophe. Mais c'est un signal.","Voici ce que tu ne dois pas faire : la 'what-the-hell effect'. C'est un biais documenté en psychologie où après un écart, les gens abandonnent complètement. 'J'ai raté un jour, autant tout arrêter.'","C'est ton cerveau qui essaie de te ramener à l'ancienne identité. Il utilise cet écart comme justification.","Refuse cette logique.","Un jour raté ne détruit pas 100 votes. Il ne remet pas à zéro la myélinisation. Il ne supprime pas les preuves accumulées.","Ce que tu fais maintenant compte plus que ce que tu as raté hier.","Vote aujourd'hui. Reconstruis le streak. L'identité attend."] },
+};
+
+// ═══════════════════════════════════════════════════════════
+// UTILS
+// ═══════════════════════════════════════════════════════════
+const today = () => new Date().toISOString().split("T")[0];
+const SAVE_KEY = "gemvitale_final";
+const load = () => { try { return JSON.parse(localStorage.getItem(SAVE_KEY))||{}; } catch { return {}; } };
+const persist = s => { try { localStorage.setItem(SAVE_KEY, JSON.stringify(s)); } catch {} };
+const getRank = xp => [...RANKS].reverse().find(r => xp >= r.minXP) || RANKS[0];
+const getNext = xp => RANKS.find(r => r.minXP > xp);
+const getStreak = hist => {
+  if (!hist) return 0;
+  let s = 0;
+  for (let i = 0; i < 200; i++) {
+    const d = new Date(); d.setDate(d.getDate() - i);
+    if (hist[d.toISOString().split("T")[0]]) s++; else break;
+  }
+  return s;
+};
+
+const getWeekKey = () => { const d=new Date(); const day=d.getDay(); const diff=d.getDate()-day+(day===0?-6:1); const m=new Date(d); m.setDate(diff); return m.toISOString().split('T')[0]; };
+
+// ═══════════════════════════════════════════════════════════
+// CSS
+// ═══════════════════════════════════════════════════════════
+const CSS = `
+@import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;600;700;900&family=Share+Tech+Mono&display=swap');
+@keyframes float    {0%,100%{transform:translateY(0)}50%{transform:translateY(-7px)}}
+@keyframes floatGem {0%,100%{transform:translateY(0) rotate(0deg)}50%{transform:translateY(-6px) rotate(.8deg)}}
+@keyframes fadeIn   {from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
+@keyframes fadeInFast{from{opacity:0}to{opacity:1}}
+@keyframes blink    {0%,100%{opacity:1}50%{opacity:0}}
+@keyframes slideR   {from{opacity:0;transform:translateX(18px)}to{opacity:1;transform:translateX(0)}}
+@keyframes fadeOut  {to{opacity:0;transform:translateY(-10px)}}
+@keyframes pulse    {0%,100%{opacity:.45}50%{opacity:1}}
+@keyframes rankUp   {0%{transform:scale(.4);opacity:0}65%{transform:scale(1.15)}100%{transform:scale(1);opacity:1}}
+@keyframes auraRing {0%{transform:scale(1);opacity:.5}100%{transform:scale(1.9);opacity:0}}
+@keyframes glowP    {0%,100%{filter:drop-shadow(0 0 8px var(--c))}50%{filter:drop-shadow(0 0 24px var(--c))}}
+@keyframes flicker  {0%,89%,91%,94%,100%{opacity:1}90%{opacity:.75}93%{opacity:.9}}
+@keyframes scanMove {0%{transform:translateY(-100%)}100%{transform:translateY(100vh)}}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{background:#04040f;overflow-x:hidden;}
+::-webkit-scrollbar{width:2px;}
+::-webkit-scrollbar-thumb{background:#ffffff0e;}
+input,textarea{caret-color:#00ffcc;}
+input::placeholder,textarea::placeholder{color:rgba(255,255,255,.16);}
+`;
+
+// ═══════════════════════════════════════════════════════════
+// GEM FROG
+// ═══════════════════════════════════════════════════════════
+function GemFrog({ color="#00ffcc", size=120, mood="neutral" }) {
+  const [blink, setBlink] = useState(false);
+  useEffect(() => {
+    const t = setInterval(() => { setBlink(true); setTimeout(() => setBlink(false), 140); }, 2800 + Math.random()*1800);
+    return () => clearInterval(t);
+  }, []);
+  const eyeR = blink ? 1 : 8;
+  const moods = { neutral:{mouth:"M 52 82 Q 60 88 68 82",py:0}, wise:{mouth:"M 50 81 Q 60 90 70 81",py:-1}, stern:{mouth:"M 52 84 Q 60 80 68 84",py:1}, proud:{mouth:"M 47 79 Q 60 93 73 79",py:-2}, curious:{mouth:"M 54 83 Q 60 89 66 83",py:-1} };
+  const m = moods[mood] || moods.neutral;
+  const id = color.replace("#","");
+  const rgb = color.slice(1).match(/.{2}/g).map(x=>parseInt(x,16)).join(",");
+  return (
+    <svg viewBox="0 0 120 130" width={size} height={size*1.08}
+      style={{filter:`drop-shadow(0 0 16px rgba(${rgb},.55)) drop-shadow(0 0 32px rgba(${rgb},.2))`}}>
+      <defs>
+        <radialGradient id={`bg${id}`} cx="42%" cy="32%" r="62%">
+          <stop offset="0%" stopColor={color} stopOpacity=".88"/><stop offset="45%" stopColor={color} stopOpacity=".55"/><stop offset="100%" stopColor="#060616" stopOpacity=".97"/>
+        </radialGradient>
+        <radialGradient id={`eg${id}`} cx="32%" cy="28%" r="65%">
+          <stop offset="0%" stopColor="white" stopOpacity=".95"/><stop offset="55%" stopColor={color} stopOpacity=".6"/><stop offset="100%" stopColor="#000" stopOpacity=".85"/>
+        </radialGradient>
+        <linearGradient id={`sh${id}`} x1="15%" y1="8%" x2="85%" y2="92%">
+          <stop offset="0%" stopColor="white" stopOpacity=".28"/><stop offset="50%" stopColor={color} stopOpacity=".08"/><stop offset="100%" stopColor="black" stopOpacity=".18"/>
+        </linearGradient>
+      </defs>
+      <ellipse cx="60" cy="126" rx="26" ry="4.5" fill={color} opacity=".1"/>
+      <ellipse cx="26" cy="104" rx="15" ry="9" fill={`url(#bg${id})`} opacity=".75" transform="rotate(-8 26 104)"/>
+      <ellipse cx="94" cy="104" rx="15" ry="9" fill={`url(#bg${id})`} opacity=".75" transform="rotate(8 94 104)"/>
+      <ellipse cx="18" cy="113" rx="11" ry="5.5" fill={color} opacity=".45" transform="rotate(-5 18 113)"/>
+      <ellipse cx="102" cy="113" rx="11" ry="5.5" fill={color} opacity=".45" transform="rotate(5 102 113)"/>
+      <polygon points="60,17 89,32 97,62 89,93 60,107 31,93 23,62 31,32" fill={`url(#bg${id})`}/>
+      <polygon points="60,17 89,32 74,54 46,54 31,32" fill={`url(#sh${id})`} opacity=".55"/>
+      <line x1="60" y1="17" x2="60" y2="107" stroke={color} strokeWidth=".4" opacity=".18"/>
+      <line x1="23" y1="62" x2="97" y2="62" stroke={color} strokeWidth=".4" opacity=".15"/>
+      <line x1="31" y1="32" x2="89" y2="93" stroke={color} strokeWidth=".3" opacity=".12"/>
+      <line x1="89" y1="32" x2="31" y2="93" stroke={color} strokeWidth=".3" opacity=".12"/>
+      <polygon points="60,17 89,32 97,62 89,93 60,107 31,93 23,62 31,32" fill="none" stroke={color} strokeWidth="1.1" opacity=".65"/>
+      <ellipse cx="60" cy="70" rx="21" ry="25" fill="rgba(255,255,255,.05)"/>
+      <ellipse cx="21" cy="71" rx="8" ry="13" fill={`url(#bg${id})`} opacity=".78" transform="rotate(-14 21 71)"/>
+      <ellipse cx="99" cy="71" rx="8" ry="13" fill={`url(#bg${id})`} opacity=".78" transform="rotate(14 99 71)"/>
+      <circle cx="15" cy="82" r="5" fill={color} opacity=".5"/>
+      <circle cx="105" cy="82" r="5" fill={color} opacity=".5"/>
+      <circle cx="42" cy="34" r="13" fill={`url(#bg${id})`}/><circle cx="78" cy="34" r="13" fill={`url(#bg${id})`}/>
+      <polygon points="42,21 55,31 55,41 42,47 29,41 29,31" fill="none" stroke={color} strokeWidth=".5" opacity=".35"/>
+      <polygon points="78,21 91,31 91,41 78,47 65,41 65,31" fill="none" stroke={color} strokeWidth=".5" opacity=".35"/>
+      <circle cx="42" cy="34" r={eyeR} fill={`url(#eg${id})`}/><circle cx="78" cy="34" r={eyeR} fill={`url(#eg${id})`}/>
+      {!blink && <><circle cx="42" cy={34+m.py} r="3.5" fill="#000" opacity=".92"/><circle cx="78" cy={34+m.py} r="3.5" fill="#000" opacity=".92"/><circle cx="40.5" cy={32+m.py} r="1.1" fill="white" opacity=".85"/><circle cx="76.5" cy={32+m.py} r="1.1" fill="white" opacity=".85"/></>}
+      <circle cx="42" cy="34" r="11" fill="none" stroke={color} strokeWidth=".5" opacity=".45"/><circle cx="78" cy="34" r="11" fill="none" stroke={color} strokeWidth=".5" opacity=".45"/>
+      <polygon points="60,23 65.5,29.5 60,36 54.5,29.5" fill={color} opacity=".95" style={{filter:`drop-shadow(0 0 5px ${color})`}}/>
+      <line x1="60" y1="23" x2="60" y2="36" stroke="white" strokeWidth=".5" opacity=".5"/>
+      <line x1="54.5" y1="29.5" x2="65.5" y2="29.5" stroke="white" strokeWidth=".5" opacity=".5"/>
+      <path d={m.mouth} fill="none" stroke={color} strokeWidth="1.6" strokeLinecap="round" opacity=".82"/>
+      <circle cx="57" cy="74" r="1.2" fill={color} opacity=".38"/><circle cx="63" cy="74" r="1.2" fill={color} opacity=".38"/>
+      {[[16,19],[104,24],[14,96],[106,91],[60,9]].map(([x,y],i)=>(
+        <g key={i}><line x1={x-4} y1={y} x2={x+4} y2={y} stroke={color} strokeWidth=".9" opacity=".35"/>
+        <line x1={x} y1={y-4} x2={x} y2={y+4} stroke={color} strokeWidth=".9" opacity=".35"/></g>
+      ))}
+    </svg>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════
+// KRYOS MODAL
+// ═══════════════════════════════════════════════════════════
+function KryosModal({ dialogueKey, color="#00ffcc", onClose }) {
+  const dialogue = DIALOGUES[dialogueKey];
+  const [idx, setIdx] = useState(0);
+  const [out, setOut] = useState("");
+  const [done, setDone] = useState(false);
+  const timerRef = useRef(null);
+  const line = dialogue?.lines[idx] || "";
+  const rgb = color.slice(1).match(/.{2}/g).map(x=>parseInt(x,16)).join(",");
+  const total = dialogue?.lines.length || 1;
+
+  useEffect(() => {
+    setOut(""); setDone(false);
+    let i = 0;
+    clearInterval(timerRef.current);
+    timerRef.current = setInterval(() => {
+      i++; setOut(line.slice(0,i));
+      if (i >= line.length) { clearInterval(timerRef.current); setDone(true); }
+    }, 19);
+    return () => clearInterval(timerRef.current);
+  }, [idx, line]);
+
+  const advance = () => {
+    if (!done) { clearInterval(timerRef.current); setOut(line); setDone(true); return; }
+    if (idx < total-1) setIdx(i=>i+1); else onClose();
+  };
+
+  if (!dialogue) return null;
+  return (
+    <div onClick={advance} style={{ position:"fixed",inset:0,zIndex:2000,
+      display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"flex-end",
+      background:"rgba(2,2,12,.94)", animation:"fadeInFast .22s ease" }}>
+      <div style={{ position:"absolute",top:36,left:0,right:0,textAlign:"center" }}>
+        <p style={{ color:`rgba(${rgb},.4)`,fontSize:9,fontFamily:"'Orbitron',monospace",letterSpacing:5 }}>{dialogue.title}</p>
+      </div>
+      <div style={{ position:"absolute",top:36,right:20 }}>
+        <p style={{ color:`rgba(${rgb},.22)`,fontSize:9,fontFamily:"'Orbitron',monospace" }}>{idx+1}/{total}</p>
+      </div>
+      <div style={{ marginBottom:-8,zIndex:1,animation:"float 4s ease-in-out infinite",filter:`drop-shadow(0 24px 40px rgba(${rgb},.22))` }}>
+        <GemFrog color={color} size={152} mood={dialogue.mood||"neutral"} />
+      </div>
+      <div style={{ width:"100%",maxWidth:520,background:`linear-gradient(180deg,rgba(6,6,22,.98) 0%,rgba(4,4,16,1) 100%)`,borderTop:`1px solid rgba(${rgb},.18)`,padding:"26px 22px 44px",position:"relative" }}>
+        {[[true,true],[true,false],[false,true],[false,false]].map(([t,l],i)=>(
+          <div key={i} style={{ position:"absolute",top:t?9:"auto",bottom:t?"auto":9,left:l?9:"auto",right:l?"auto":9,width:12,height:12,
+            borderTop:t?`1px solid rgba(${rgb},.32)`:"none",borderBottom:t?"none":`1px solid rgba(${rgb},.32)`,
+            borderLeft:l?`1px solid rgba(${rgb},.32)`:"none",borderRight:l?"none":`1px solid rgba(${rgb},.32)` }}/>
+        ))}
+        <div style={{ display:"flex",alignItems:"center",gap:8,marginBottom:14 }}>
+          <div style={{ width:5,height:5,borderRadius:"50%",background:color,boxShadow:`0 0 7px ${color}`,animation:"pulse 2s infinite" }}/>
+          <span style={{ color,fontSize:10,fontFamily:"'Orbitron',monospace",letterSpacing:3,textShadow:`0 0 8px ${color}44` }}>KRYOS</span>
+          <span style={{ color:`rgba(${rgb},.25)`,fontSize:9,fontFamily:"'Orbitron',monospace" }}>— GARDIEN DES GEMMES</span>
+        </div>
+        <p style={{ color:"rgba(255,255,255,.82)",fontSize:13.5,lineHeight:1.8,minHeight:78,fontFamily:"'Share Tech Mono',monospace",letterSpacing:.2 }}>
+          {out}{!done&&<span style={{color,animation:"blink .65s infinite"}}>█</span>}
+        </p>
+        <div style={{ display:"flex",gap:4,marginTop:18,justifyContent:"center" }}>
+          {dialogue.lines.map((_,i)=>(
+            <div key={i} style={{ height:2,borderRadius:1,width:i===idx?18:5,
+              background:i<=idx?color:`rgba(${rgb},.16)`,
+              boxShadow:i===idx?`0 0 5px ${color}`:"none",transition:"all .3s" }}/>
+          ))}
+        </div>
+        {done&&<p style={{ textAlign:"center",marginTop:12,color:`rgba(${rgb},.32)`,fontSize:8,fontFamily:"'Orbitron',monospace",letterSpacing:3,animation:"pulse 1.5s infinite" }}>
+          {idx<total-1?"[ CONTINUER ]":"[ FERMER ]"}
+        </p>}
+      </div>
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════
+// TOOLTIP & STAT CARD
+// ═══════════════════════════════════════════════════════════
+function InfoTip({ text, color="#00ffcc" }) {
+  const [show, setShow] = useState(false);
+  return (
+    <div style={{ position:"relative", display:"inline-flex", alignItems:"center" }}>
+      <button
+        onClick={e => { e.stopPropagation(); setShow(s => !s); }}
+        style={{ width:13, height:13, borderRadius:"50%", background:"rgba(255,255,255,.08)",
+          border:`1px solid ${color}44`, color:`${color}88`, fontSize:8,
+          fontFamily:"'Orbitron',monospace", cursor:"pointer", lineHeight:1,
+          display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}>
+        ?
+      </button>
+      {show && (
+        <div onClick={e=>e.stopPropagation()} style={{ position:"absolute", bottom:"calc(100% + 8px)", left:"50%", transform:"translateX(-50%)",
+          background:"rgba(4,4,20,.97)", border:`1px solid ${color}33`,
+          borderRadius:6, padding:"10px 12px", width:220, zIndex:500,
+          boxShadow:`0 4px 20px rgba(0,0,0,.6)` }}>
+          <p style={{ color:"rgba(255,255,255,.65)", fontSize:10, lineHeight:1.6, fontFamily:"'Share Tech Mono',monospace" }}>{text}</p>
+          <div style={{ position:"absolute", bottom:-5, left:"50%", transform:"translateX(-50%)",
+            width:8, height:8, background:"rgba(4,4,20,.97)", border:`1px solid ${color}33`,
+            borderBottom:"none", borderRight:"none", transform:"translateX(-50%) rotate(225deg)" }}/>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function StatCard({ label, val, color, tip }) {
+  return (
+    <div style={{ background:"rgba(255,255,255,.03)", border:`1px solid ${color}18`,
+      borderRadius:6, padding:"9px 6px", textAlign:"center",
+      boxShadow:`inset 0 0 18px ${color}07` }}>
+      <div style={{ color, fontSize:17, fontFamily:"'Orbitron',monospace", fontWeight:700,
+        textShadow:`0 0 10px ${color}77` }}>{val}</div>
+      <div style={{ display:"flex", alignItems:"center", justifyContent:"center", gap:3, marginTop:2 }}>
+        <span style={{ color:"rgba(255,255,255,.18)", fontSize:7, fontFamily:"'Orbitron',monospace", letterSpacing:1 }}>{label}</span>
+        {tip && <InfoTip text={tip} color={color}/>}
+      </div>
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════
+// 3D GEM CANVAS
+// ═══════════════════════════════════════════════════════════
+function Gem3D({ color="#00ffcc", rank="E", size=260 }) {
+  const canvasRef = useRef(null);
+  const rafRef = useRef(null);
+  const S = useRef({ rotY:.4,rotX:.28,tY:.4,tX:.28,drag:false,lx:0,ly:0 });
+  useEffect(() => {
+    const canvas = canvasRef.current; if (!canvas) return;
+    const ctx = canvas.getContext("2d");
+    canvas.width = size; canvas.height = size;
+    const W=size,H=size;
+    const cr=parseInt(color.slice(1,3),16),cg=parseInt(color.slice(3,5),16),cb=parseInt(color.slice(5,7),16);
+    const rankRGB={E:[75,85,99],D:[34,197,94],C:[59,130,246],B:[168,85,247],A:[245,158,11],S:[239,68,68],SS:[255,0,255],SSS:[255,255,255]};
+    const rc=rankRGB[rank]||rankRGB.E;
+    const verts=[
+      [0,1.45,0],[0,-1.45,0],
+      ...[0,1,2,3,4,5].map(i=>{ const a=i/6*Math.PI*2; return [Math.cos(a)*.95,.72,Math.sin(a)*.95]; }),
+      ...[0,1,2,3,4,5].map(i=>{ const a=i/6*Math.PI*2+Math.PI/6; return [Math.cos(a)*1.05,.02,Math.sin(a)*1.05]; }),
+      ...[0,1,2,3,4,5].map(i=>{ const a=i/6*Math.PI*2; return [Math.cos(a)*.9,-.68,Math.sin(a)*.9]; }),
+    ];
+    const faces=[];
+    for(let i=0;i<6;i++) faces.push([0,2+i,2+(i+1)%6,.92]);
+    for(let i=0;i<6;i++){ faces.push([2+i,8+i,2+(i+1)%6,.76]); faces.push([8+i,8+(i+1)%6,2+(i+1)%6,.62]); }
+    for(let i=0;i<6;i++){ faces.push([8+i,14+i,8+(i+1)%6,.52]); faces.push([14+i,14+(i+1)%6,8+(i+1)%6,.42]); }
+    for(let i=0;i<6;i++) faces.push([14+i,1,14+(i+1)%6,.32]);
+    const proj=(v,rY,rX)=>{
+      let[x,y,z]=v;
+      const cy2=Math.cos(rX),sy2=Math.sin(rX); const y2=y*cy2-z*sy2,z2=y*sy2+z*cy2; y=y2;z=z2;
+      const cy=Math.cos(rY),sy=Math.sin(rY); const x2=x*cy+z*sy,z3=-x*sy+z*cy; x=x2;z=z3;
+      const fov=3.4,sc=W*.21; const pz=z+fov;
+      return{x:W/2+(x/pz)*sc*fov,y:H/2-(y/pz)*sc*fov,z:z3,d:z};
+    };
+    const norm=(p1,p2,p3)=>(p2.x-p1.x)*(p3.y-p1.y)-(p2.y-p1.y)*(p3.x-p1.x);
+    const lerp=(a,b,t)=>a+(b-a)*t;
+    const draw=()=>{
+      const s=S.current;
+      s.rotY+=(s.tY-s.rotY)*.055; s.rotX+=(s.tX-s.rotX)*.055;
+      if(!s.drag) s.tY+=.007;
+      ctx.clearRect(0,0,W,H);
+      const grd=ctx.createRadialGradient(W/2,H/2,0,W/2,H/2,W*.5);
+      grd.addColorStop(0,`rgba(${cr},${cg},${cb},.07)`); grd.addColorStop(1,"rgba(0,0,0,0)");
+      ctx.fillStyle=grd; ctx.fillRect(0,0,W,H);
+      const pv=verts.map(v=>proj(v,s.rotY,s.rotX));
+      [...faces].map(f=>{ const p1=pv[f[0]],p2=pv[f[1]],p3=pv[f[2]]; return{f,p1,p2,p3,d:(p1.d+p2.d+p3.d)/3}; })
+        .sort((a,b)=>a.d-b.d)
+        .forEach(({f,p1,p2,p3})=>{
+          if(norm(p1,p2,p3)>=0) return;
+          const br=f[3],al=.14+br*.58;
+          const mr=lerp(cr,rc[0],.28),mg=lerp(cg,rc[1],.28),mb=lerp(cb,rc[2],.28);
+          ctx.beginPath(); ctx.moveTo(p1.x,p1.y); ctx.lineTo(p2.x,p2.y); ctx.lineTo(p3.x,p3.y); ctx.closePath();
+          const gx=ctx.createLinearGradient(p1.x,p1.y,p3.x,p3.y);
+          gx.addColorStop(0,`rgba(${mr},${mg},${mb},${al*1.4})`);
+          gx.addColorStop(.5,`rgba(${cr},${cg},${cb},${al*.55})`);
+          gx.addColorStop(1,`rgba(${Math.min(cr+35,255)},${Math.min(cg+35,255)},${Math.min(cb+35,255)},${al*.28})`);
+          ctx.fillStyle=gx; ctx.fill();
+          ctx.strokeStyle=`rgba(${cr},${cg},${cb},${br*.65})`; ctx.lineWidth=.55; ctx.stroke();
+          if(br>.7){ const mx=(p1.x+p2.x+p3.x)/3,my=(p1.y+p2.y+p3.y)/3;
+            const sg=ctx.createRadialGradient(mx-5,my-5,0,mx,my,16);
+            sg.addColorStop(0,`rgba(255,255,255,${br*.38})`); sg.addColorStop(1,"rgba(255,255,255,0)");
+            ctx.fillStyle=sg; ctx.fill(); }
+        });
+      const ring=ctx.createRadialGradient(W/2,H/2,W*.28,W/2,H/2,W*.52);
+      ring.addColorStop(0,"rgba(0,0,0,0)"); ring.addColorStop(.7,`rgba(${cr},${cg},${cb},.035)`); ring.addColorStop(1,`rgba(${cr},${cg},${cb},.1)`);
+      ctx.fillStyle=ring; ctx.fillRect(0,0,W,H);
+      rafRef.current=requestAnimationFrame(draw);
+    };
+    draw();
+    const gp=e=>e.touches?{x:e.touches[0].clientX,y:e.touches[0].clientY}:{x:e.clientX,y:e.clientY};
+    const dn=e=>{ S.current.drag=true; const p=gp(e); S.current.lx=p.x; S.current.ly=p.y; };
+    const mv=e=>{ if(!S.current.drag) return; const p=gp(e);
+      S.current.tY+=(p.x-S.current.lx)*.011; S.current.tX+=(p.y-S.current.ly)*.008;
+      S.current.tX=Math.max(-.75,Math.min(.75,S.current.tX)); S.current.lx=p.x; S.current.ly=p.y; };
+    const up=()=>{ S.current.drag=false; };
+    canvas.addEventListener("mousedown",dn); canvas.addEventListener("touchstart",dn,{passive:true});
+    window.addEventListener("mousemove",mv); window.addEventListener("touchmove",mv,{passive:true});
+    window.addEventListener("mouseup",up); window.addEventListener("touchend",up);
+    return ()=>{ cancelAnimationFrame(rafRef.current);
+      canvas.removeEventListener("mousedown",dn); canvas.removeEventListener("touchstart",dn);
+      window.removeEventListener("mousemove",mv); window.removeEventListener("touchmove",mv);
+      window.removeEventListener("mouseup",up); window.removeEventListener("touchend",up); };
+  }, [color, rank, size]);
+  return <canvas ref={canvasRef} style={{ display:"block",cursor:"grab",filter:`drop-shadow(0 0 28px rgba(${color.slice(1).match(/.{2}/g).map(x=>parseInt(x,16)).join(",")},0.38))` }}/>;
+}
+
+// ═══════════════════════════════════════════════════════════
+// FACETTE HUD
+// ═══════════════════════════════════════════════════════════
+function FacetteHUD({ f, fRank, fXP, streak, identite, joursFaits, kryosDaily }) {
+  const next = getNext(fXP);
+  const pct = next ? (fXP-fRank.minXP)/(next.minXP-fRank.minXP)*100 : 100;
+  return (
+    <div style={{ position:"relative",width:"100%",overflow:"hidden" }}>
+
+      <div style={{ position:"relative",zIndex:1,textAlign:"center",padding:"36px 0 16px" }}>
+        <div style={{ fontSize:68,lineHeight:1,"--c":f.color,animation:"glowP 3s ease-in-out infinite",
+          filter:`drop-shadow(0 0 18px ${f.color}) drop-shadow(0 0 36px ${f.color}44)` }}>{f.icon}</div>
+        <div style={{ marginTop:10,color:f.color,fontFamily:"'Orbitron',monospace",fontSize:19,fontWeight:900,letterSpacing:4,
+          textShadow:`0 0 18px ${f.color},0 0 36px ${f.color}44` }}>{f.label.toUpperCase()}</div>
+        <div style={{ color:"rgba(255,255,255,.28)",fontSize:10,fontFamily:"'Orbitron',monospace",letterSpacing:2,marginTop:4 }}>{identite}</div>
+      </div>
+      <div style={{ display:"flex",justifyContent:"center",marginBottom:14,position:"relative",zIndex:1 }}>
+        <div style={{ display:"inline-flex",alignItems:"center",gap:10,padding:"7px 18px",
+          background:`rgba(${fRank.rgb},.1)`,border:`1px solid ${fRank.color}44`,borderRadius:4,
+          boxShadow:`0 0 16px ${fRank.color}18` }}>
+          <span style={{ color:fRank.color,fontSize:20,fontFamily:"'Orbitron',monospace",fontWeight:900,textShadow:`0 0 10px ${fRank.color}` }}>{fRank.id}</span>
+          <div><div style={{ color:fRank.color,fontSize:10,fontFamily:"'Orbitron',monospace",letterSpacing:2 }}>{fRank.title.toUpperCase()}</div>
+          <div style={{ color:"rgba(255,255,255,.18)",fontSize:9,fontFamily:"'Orbitron',monospace" }}>RANG {fRank.id}</div></div>
+        </div>
+      </div>
+      <div style={{ padding:"0 22px",marginBottom:18,position:"relative",zIndex:1 }}>
+        <div style={{ display:"flex",justifyContent:"space-between",marginBottom:5 }}>
+          <span style={{ color:"rgba(255,255,255,.25)",fontSize:9,fontFamily:"'Orbitron',monospace",letterSpacing:2 }}>EXPERIENCE</span>
+          <span style={{ color:f.color,fontSize:9,fontFamily:"'Orbitron',monospace" }}>{fXP} / {next?.minXP||800} XP</span>
+        </div>
+        <div style={{ position:"relative",height:5,background:"rgba(255,255,255,.05)",borderRadius:3,overflow:"hidden" }}>
+          <div style={{ position:"absolute",inset:0,background:`linear-gradient(90deg,rgba(${f.rgb},.25),transparent)` }}/>
+          <div style={{ height:"100%",width:`${pct}%`,background:`linear-gradient(90deg,${f.color}77,${f.color})`,
+            boxShadow:`0 0 10px ${f.color},0 0 20px ${f.color}55`,borderRadius:3,transition:"width 1s ease",position:"relative" }}>
+            <div style={{ position:"absolute",right:0,top:0,bottom:0,width:2,background:"white",opacity:.85,boxShadow:"0 0 5px white" }}/>
+          </div>
+        </div>
+        {next&&<div style={{ textAlign:"right",marginTop:4,color:"rgba(255,255,255,.14)",fontSize:8,fontFamily:"'Orbitron',monospace" }}>{next.minXP-fXP} XP → RANG {next.id}</div>}
+      </div>
+      <div style={{ display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:7,padding:"0 18px",marginBottom:14,position:"relative",zIndex:1 }}>
+        {[
+          {label:f.stat,val:Math.min(fXP,999),color:f.color,tip:`${f.stat} — Score de progression de la facette ${f.label}. Augmente avec chaque vote.`},
+          {label:"STREAK",val:`${streak}${streak>0?"🔥":""}`,color:"#f59e0b",tip:"STREAK — Jours consécutifs votés. Se remet à zéro si tu sautes une journée. Le completion effect rend la rupture inconfortable."},
+          {label:"JOURS",val:joursFaits,color:"#a78bfa",tip:"JOURS — Nombre total de journées validées sur 90. Chaque jour ancre un peu plus l'identité."},
+        ].map(({label,val,color,tip})=>(
+          <StatCard key={label} label={label} val={val} color={color} tip={tip}/>
+        ))}
+      </div>
+      {/* Timeline 90j */}
+      <div style={{padding:"0 18px",marginBottom:11,position:"relative",zIndex:1}}>
+        <div style={{display:"flex",justifyContent:"space-between",marginBottom:5,alignItems:"center"}}>
+          <span style={{color:"rgba(255,255,255,.2)",fontSize:8,fontFamily:"'Orbitron',monospace",letterSpacing:2}}>PARCOURS 90 JOURS</span>
+          <span style={{color:joursFaits<30?"#22c55e":joursFaits<60?"#3b82f6":"#a855f7",fontSize:8,fontFamily:"'Orbitron',monospace"}}>
+            {joursFaits<30?"INITIATION":joursFaits<60?"INTÉGRATION":"MAÎTRISE"} · J{joursFaits}
+          </span>
+        </div>
+        <div style={{position:"relative",height:7,background:"rgba(255,255,255,.04)",borderRadius:4,overflow:"hidden"}}>
+          <div style={{position:"absolute",left:0,top:0,bottom:0,width:"33.3%",background:"rgba(34,197,94,.08)",borderRight:"1px solid rgba(34,197,94,.15)"}}/>
+          <div style={{position:"absolute",left:"33.3%",top:0,bottom:0,width:"33.3%",background:"rgba(59,130,246,.08)",borderRight:"1px solid rgba(59,130,246,.15)"}}/>
+          <div style={{position:"absolute",left:"66.6%",top:0,bottom:0,width:"33.4%",background:"rgba(168,85,247,.08)"}}/>
+          <div style={{height:"100%",width:`${Math.min(joursFaits/90*100,100)}%`,background:"linear-gradient(90deg,#22c55e,#3b82f6,#a855f7)",borderRadius:4,transition:"width 1s ease",position:"relative"}}>
+            <div style={{position:"absolute",right:0,top:0,bottom:0,width:2,background:"white",opacity:.9,boxShadow:"0 0 4px white"}}/>
+          </div>
+        </div>
+        <div style={{display:"flex",justifyContent:"space-between",marginTop:3}}>
+          {[["INITIATION","#22c55e"],["INTÉGRATION","#3b82f6"],["MAÎTRISE","#a855f7"]].map(([l,col])=>(<span key={l} style={{color:`${col}55`,fontSize:7,fontFamily:"'Orbitron',monospace"}}>{l}</span>))}
+        </div>
+      </div>
+
+      {/* Kryos daily thought */}
+      {kryosDaily && (
+        <div style={{margin:"0 18px 10px",padding:"9px 11px",background:"rgba(167,139,250,.05)",border:"1px solid rgba(167,139,250,.12)",borderRadius:6,position:"relative",zIndex:1}}>
+          <div style={{display:"flex",gap:7,alignItems:"flex-start"}}>
+            <div style={{flexShrink:0}}><GemFrog color="#a78bfa" size={20} mood="wise"/></div>
+            <p style={{color:"rgba(255,255,255,.4)",fontSize:10,lineHeight:1.6,fontFamily:"'Share Tech Mono',monospace",fontStyle:"italic"}}>"{kryosDaily}"</p>
+          </div>
+        </div>
+      )}
+
+      <div style={{ position:"absolute",inset:0,pointerEvents:"none",zIndex:2,
+        background:`linear-gradient(transparent 0%,${f.color}03 50%,transparent 100%)`,backgroundSize:"100% 5px",animation:"flicker 8s infinite" }}/>
+      {[[true,true],[true,false],[false,true],[false,false]].map(([t,l],i)=>(
+        <div key={i} style={{ position:"absolute",top:t?10:"auto",bottom:t?"auto":10,left:l?10:"auto",right:l?"auto":10,
+          width:14,height:14,pointerEvents:"none",zIndex:3,
+          borderTop:t?`1px solid ${f.color}44`:"none",borderBottom:t?"none":`1px solid ${f.color}44`,
+          borderLeft:l?`1px solid ${f.color}44`:"none",borderRight:l?"none":`1px solid ${f.color}44` }}/>
+      ))}
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════
+// NOTIFS
+// ═══════════════════════════════════════════════════════════
+function XPNotif({ xp, onDone }) {
+  useEffect(()=>{ const t=setTimeout(onDone,2200); return()=>clearTimeout(t); },[]);
+  return <div style={{ position:"fixed",top:66,right:14,zIndex:999,background:"rgba(0,255,100,.1)",border:"1px solid #00ff6430",borderRadius:5,padding:"7px 14px",color:"#00ff64",fontFamily:"'Orbitron',monospace",fontSize:14,fontWeight:700,animation:"slideR .3s ease, fadeOut .3s ease 1.9s forwards" }}>+{xp} XP</div>;
+}
+function RankNotif({ rank, onDone }) {
+  useEffect(()=>{ const t=setTimeout(onDone,3400); return()=>clearTimeout(t); },[]);
+  return (
+    <div style={{ position:"fixed",inset:0,zIndex:1900,background:"rgba(0,0,0,.9)",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",animation:"fadeInFast .3s ease" }}>
+      <p style={{ color:rank.color,fontSize:9,fontFamily:"'Orbitron',monospace",letterSpacing:5,marginBottom:12,animation:"pulse 1s infinite" }}>RANG SUPÉRIEUR DÉBLOQUÉ</p>
+      <div style={{ fontSize:88,fontFamily:"'Orbitron',monospace",fontWeight:900,color:rank.color,textShadow:`0 0 50px ${rank.color},0 0 100px ${rank.color}33`,animation:"rankUp .5s ease" }}>{rank.id}</div>
+      <p style={{ color:"rgba(255,255,255,.35)",fontSize:13,marginTop:12,fontFamily:"'Orbitron',monospace" }}>{rank.title.toUpperCase()}</p>
+    </div>
+  );
+}
+
+
+// ═══════════════════════════════════════════════════════════
+// CORRELATION CHART
+// ═══════════════════════════════════════════════════════════
+function CorrelationChart({ histoire }) {
+  const days = Array.from({length:14},(_,i)=>{
+    const d=new Date(); d.setDate(d.getDate()-(13-i));
+    const k=d.toISOString().split("T")[0]; const j=histoire[k]||{};
+    return{day:d.toLocaleDateString("fr-FR",{weekday:"short"}).slice(0,2),energie:j.energie||0,votes:Object.values(j.votes||{}).filter(Boolean).length,sommeil:j.sommeil?1:0};
+  });
+  const maxVotes=Math.max(...days.map(d=>d.votes),5);
+  return(
+    <div style={{background:"rgba(255,255,255,.02)",border:"1px solid rgba(255,255,255,.06)",borderRadius:8,padding:"12px 14px"}}>
+      <div style={{display:"flex",justifyContent:"space-between",marginBottom:10,alignItems:"center"}}>
+        <p style={{color:"rgba(255,255,255,.2)",fontSize:8,letterSpacing:3,fontFamily:"'Orbitron',monospace"}}>SOMMEIL → ÉNERGIE → VOTES</p>
+        <InfoTip text="Corrélation entre ton sommeil (point bleu), ton énergie et tes votes. Vert=énergie haute, jaune=moyenne, orange=basse. La colle invisible en action." color="#60a5fa"/>
+      </div>
+      <div style={{display:"flex",alignItems:"flex-end",gap:3,height:60}}>
+        {days.map((d,i)=>(
+          <div key={i} style={{flex:1,display:"flex",flexDirection:"column",alignItems:"center",gap:2}}>
+            <div style={{width:"100%",borderRadius:2,height:d.votes>0?`${(d.votes/maxVotes)*50}px`:"3px",
+              background:d.energie>=7?"#00ff64":d.energie>=4?"#ffd700":d.votes>0?"#f97316":"rgba(255,255,255,.05)",
+              alignSelf:"flex-end",minHeight:3,position:"relative",transition:"height .5s ease"}}>
+              {d.sommeil>0&&<div style={{position:"absolute",top:-5,left:"50%",transform:"translateX(-50%)",width:4,height:4,borderRadius:"50%",background:"#60a5fa",boxShadow:"0 0 4px #60a5fa"}}/>}
+            </div>
+            <span style={{color:"rgba(255,255,255,.18)",fontSize:7,fontFamily:"'Orbitron',monospace"}}>{d.day}</span>
+          </div>
+        ))}
+      </div>
+      <div style={{display:"flex",gap:10,marginTop:8,justifyContent:"center",flexWrap:"wrap"}}>
+        {[["#60a5fa","Sommeil ●"],["#00ff64","Énergie haute"],["#ffd700","Moy."],["#f97316","Basse"]].map(([col,l])=>(
+          <div key={l} style={{display:"flex",alignItems:"center",gap:3}}><div style={{width:6,height:6,borderRadius:"50%",background:col}}/><span style={{color:"rgba(255,255,255,.2)",fontSize:7,fontFamily:"'Orbitron',monospace"}}>{l}</span></div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════
+// PROFILE SCREEN
+// ═══════════════════════════════════════════════════════════
+function ProfileScreen({ state, onKryos }) {
+  const { nom,valeurs,facetteId,facettesState={},xp } = state;
+  const rank=getRank(xp||0); const next=getNext(xp||0);
+  const f=FACETTES.find(fc=>fc.id===facetteId);
+  const streak=getStreak(state.histoire||{});
+  const joursFaits=Object.keys(state.histoire||{}).length;
+  return (
+    <div style={{ paddingBottom:20 }}>
+      <div style={{ textAlign:"center",padding:"22px 0 6px",position:"relative" }}>
+        <div style={{ display:"inline-block",animation:"floatGem 5s ease-in-out infinite" }}>
+          <Gem3D color={f?.color||"#00ffcc"} rank={rank.id} size={230}/>
+        </div>
+        <div style={{ position:"absolute",top:"50%",left:"50%",transform:"translate(-50%,-50%)",width:185,height:185,borderRadius:"50%",background:`radial-gradient(circle,${f?.color||"#00ffcc"}15 0%,transparent 70%)`,pointerEvents:"none" }}/>
+      </div>
+      <div style={{ textAlign:"center",padding:"0 20px 18px" }}>
+        <p style={{ color:"#fff",fontFamily:"'Orbitron',monospace",fontSize:17,letterSpacing:4,marginBottom:3 }}>{nom}</p>
+        <p style={{ color:"rgba(255,255,255,.18)",fontSize:9,fontFamily:"'Orbitron',monospace" }}>{(valeurs||[]).join(" · ")}</p>
+      </div>
+      {/* Gemme globale — score based on A/S facettes */}
+      {(() => {
+        const gRank = getGlobalRank(facettesState);
+        const gNext = getNextGlobalRank(facettesState);
+        const gScore = getGlobalScore(facettesState);
+        const isSSS = gRank.id === "SSS";
+        return (
+          <div style={{ margin:"0 16px 11px", background:`rgba(${gRank.rgb},.07)`, border:`1px solid ${gRank.color}22`, borderRadius:8, padding:"13px 16px",
+            boxShadow: gRank.id==="SSS" ? "0 0 30px rgba(255,255,255,.15), 0 0 60px rgba(255,255,255,.05)" : gRank.id==="SS" ? `0 0 20px rgba(255,0,255,.12)` : "none" }}>
+            <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:8 }}>
+              <div>
+                <div style={{ display:"flex", alignItems:"center", gap:6, marginBottom:3 }}>
+                  <p style={{ color:"rgba(255,255,255,.2)", fontSize:8, letterSpacing:3, fontFamily:"'Orbitron',monospace" }}>GEMME GLOBALE</p>
+                  <InfoTip text="GEMME GLOBALE — Rang calculé selon tes facettes. Chaque facette Rang A = +1pt, Rang S = +2pts. Atteins SSS en maîtrisant toutes les facettes." color={gRank.color}/>
+                </div>
+                <p style={{ color:gRank.color, fontSize:13, fontFamily:"'Orbitron',monospace", fontWeight:700, textShadow:`0 0 10px ${gRank.color}` }}>
+                  {gRank.title.toUpperCase()}
+                </p>
+              </div>
+              <div style={{ fontSize:gRank.id.length>1?24:34, fontFamily:"'Orbitron',monospace", fontWeight:900, color:gRank.color,
+                textShadow: isSSS ? "0 0 30px #fff, 0 0 60px #fff" : `0 0 22px ${gRank.color}`,
+                animation: isSSS ? "pulse .8s infinite" : "none" }}>{gRank.id}</div>
+            </div>
+            <div style={{ background:"rgba(255,255,255,.05)", borderRadius:2, height:3, overflow:"hidden" }}>
+              <div style={{ height:"100%", width:gNext?`${(gScore-gRank.minScore)/(gNext.minScore-gRank.minScore)*100}%`:"100%",
+                background: isSSS ? "linear-gradient(90deg,#fff8,#fff)" : `linear-gradient(90deg,${gRank.color}55,${gRank.color})`,
+                boxShadow:`0 0 7px ${gRank.color}`, borderRadius:2, transition:"width 1s ease" }}/>
+            </div>
+            {gNext && <p style={{ color:"rgba(255,255,255,.18)", fontSize:9, marginTop:5, fontFamily:"'Orbitron',monospace" }}>
+              Score {gScore}/{gNext.minScore} → {gNext.id} {gNext.title}
+            </p>}
+            {!gNext && <p style={{ color:gRank.color, fontSize:9, marginTop:5, fontFamily:"'Orbitron',monospace", animation:"pulse 2s infinite" }}>
+              ✦ RANG MAXIMUM ATTEINT — TOUTES LES FACETTES MAÎTRISÉES
+            </p>}
+          </div>
+        );
+      })()}
+      <div style={{ display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:7,margin:"0 16px 11px" }}>
+        {[
+          {val:state.totalVotes||0,label:"VOTES",c:"#00ffcc",tip:"VOTES — Total de votes accomplis depuis le début. 100 votes = identité ancrée."},
+          {val:streak,label:"STREAK",c:"#f59e0b",tip:"STREAK — Jours consécutifs sans interruption. Se remet à zéro si tu sautes une journée."},
+          {val:joursFaits,label:"JOURS",c:"#a78bfa",tip:"JOURS — Nombre de journées validées sur 90. Objectif : 90 jours = cycle complet."},
+        ].map(({val,label,c,tip})=>(
+          <div key={label} style={{ background:"rgba(255,255,255,.02)",border:`1px solid ${c}16`,borderRadius:8,padding:"10px 6px",textAlign:"center",position:"relative" }}>
+            <div style={{ color:c,fontSize:19,fontFamily:"'Orbitron',monospace",fontWeight:700,textShadow:`0 0 10px ${c}55` }}>{val}{label==="STREAK"&&val>0?"🔥":""}</div>
+            <div style={{ display:"flex",alignItems:"center",justifyContent:"center",gap:3,marginTop:2 }}>
+              <span style={{ color:"rgba(255,255,255,.16)",fontSize:7,letterSpacing:2,fontFamily:"'Orbitron',monospace" }}>{label}</span>
+              <InfoTip text={tip} color={c}/>
+            </div>
+          </div>
+        ))}
+      </div>
+      <div style={{ margin:"0 16px",background:"rgba(255,255,255,.02)",border:"1px solid rgba(255,255,255,.05)",borderRadius:8,padding:"13px 14px" }}>
+        <p style={{ color:"rgba(255,255,255,.18)",fontSize:8,letterSpacing:3,fontFamily:"'Orbitron',monospace",marginBottom:11 }}>TOUTES LES FACETTES</p>
+        {FACETTES.map(fc=>{
+          const fcs=(facettesState)[fc.id]||{xp:0}; const fcR=getRank(fcs.xp||0); const isAct=fc.id===facetteId;
+          return (
+            <div key={fc.id} style={{ display:"flex",alignItems:"center",gap:9,padding:"6px 9px",borderRadius:4,background:isAct?`${fc.color}07`:"transparent",border:`1px solid ${isAct?fc.color+"15":"rgba(255,255,255,.03)"}`,marginBottom:5 }}>
+              <span style={{ color:isAct?fc.color:`${fc.color}44`,fontSize:13,minWidth:20 }}>{fc.icon}</span>
+              <span style={{ color:isAct?fc.color:"rgba(255,255,255,.25)",fontSize:9,fontFamily:"'Orbitron',monospace",flex:1 }}>{fc.label}</span>
+              <div style={{ width:55,height:2,background:"rgba(255,255,255,.05)",borderRadius:1,overflow:"hidden" }}>
+                <div style={{ height:"100%",width:`${Math.min((fcs.xp||0)/800*100,100)}%`,background:fc.color,boxShadow:`0 0 4px ${fc.color}`,borderRadius:1,transition:"width 1s ease" }}/>
+              </div>
+              <span style={{ color:fcR.id==="E"?"rgba(255,255,255,.15)":fcR.color,fontSize:8,fontFamily:"'Orbitron',monospace",minWidth:11 }}>{fcR.id}</span>
+              {isAct&&<span style={{ color:fc.color,fontSize:7,fontFamily:"'Orbitron',monospace" }}>●</span>}
+            </div>
+          );
+        })}
+      </div>
+      <div style={{margin:"0 16px 11px"}}><CorrelationChart histoire={state.histoire||{}}/></div>
+      {/* Kryos button */}
+      <button onClick={()=>onKryos("daily_start")} style={{ display:"flex",alignItems:"center",gap:10,margin:"14px 16px 0",padding:"11px 14px",width:"calc(100% - 32px)",background:"rgba(255,255,255,.02)",border:"1px solid rgba(0,255,200,.1)",borderRadius:8,cursor:"pointer",transition:"all .2s" }}>
+        <GemFrog color="#00ffcc" size={28} mood="curious"/>
+        <span style={{ color:"rgba(255,255,255,.35)",fontSize:10,fontFamily:"'Orbitron',monospace" }}>Parler à Kryos</span>
+        <span style={{ color:"rgba(0,255,200,.3)",fontSize:9,marginLeft:"auto",fontFamily:"'Orbitron',monospace" }}>→</span>
+      </button>
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════
+// VOTES SCREEN
+// ═══════════════════════════════════════════════════════════
+function VotesScreen({ state, onVote, onSommeil, onEnergie, onAurele, onAureleAnswer, onBoss, onDayClose }) {
+  const { facetteId,xp,votesJour={},sommeilJour,energieJour,aureleJour,aureleAnswer,bossJour } = state;
+  const f=FACETTES.find(fc=>fc.id===facetteId);
+  const vData=VOTES_DATA[facetteId]||[];
+  const doneCount=Object.values(votesJour).filter(Boolean).length;
+  const xpToday=vData.filter(v=>votesJour[v.label]).reduce((a,v)=>a+v.xp,0)+(sommeilJour?10:0)+(bossJour?50:0);
+  const boss=BOSS_LIST[new Date().getDate()%BOSS_LIST.length];
+  const [showAns,setShowAns]=useState(false);
+  const [ansText,setAnsText]=useState(aureleAnswer||"");
+  return (
+    <div style={{ padding:"12px 16px 0" }}>
+      <div style={{ display:"flex",justifyContent:"space-between",alignItems:"center",background:"rgba(0,255,100,.05)",border:"1px solid rgba(0,255,100,.1)",borderRadius:6,padding:"9px 14px",marginBottom:13 }}>
+        <span style={{ color:"rgba(255,255,255,.28)",fontSize:9,fontFamily:"'Orbitron',monospace",letterSpacing:2 }}>XP AUJOURD'HUI</span>
+        <span style={{ color:"#00ff64",fontSize:17,fontFamily:"'Orbitron',monospace",fontWeight:700,textShadow:"0 0 12px #00ff6477" }}>+{xpToday}</span>
+      </div>
+      {/* Boss */}
+      <div style={{ background:bossJour?"rgba(239,68,68,.08)":"rgba(239,68,68,.03)",border:`1px solid ${bossJour?"#ef444444":"rgba(239,68,68,.14)"}`,borderRadius:8,padding:"10px 13px",marginBottom:9 }}>
+        <div style={{ display:"flex",justifyContent:"space-between",alignItems:"center" }}>
+          <div style={{flex:1}}><p style={{ color:"#ef4444",fontSize:9,fontFamily:"'Orbitron',monospace",marginBottom:3 }}>⚔ BOSS HEBDO</p><p style={{ color:"rgba(255,255,255,.32)",fontSize:11 }}>{boss}</p></div>
+          <div style={{ display:"flex",flexDirection:"column",alignItems:"center",gap:3,marginLeft:10 }}>
+            <span style={{ color:"#ef444455",fontSize:8,fontFamily:"'Orbitron',monospace" }}>+50 XP</span>
+            <button onClick={onBoss} style={{ padding:"5px 10px",borderRadius:3,background:bossJour?"rgba(239,68,68,.18)":"rgba(255,255,255,.03)",border:`1px solid ${bossJour?"#ef4444":"rgba(239,68,68,.18)"}`,color:bossJour?"#ef4444":"rgba(255,255,255,.22)",fontSize:9,cursor:"pointer",fontFamily:"'Orbitron',monospace",transition:"all .2s" }}>{bossJour?"✓":"RELEVER"}</button>
+          </div>
+        </div>
+      </div>
+      {/* Sommeil + Energie */}
+      <div style={{ display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:9 }}>
+        <button onClick={onSommeil} style={{ padding:"10px 10px",textAlign:"left",background:sommeilJour?"rgba(96,165,250,.07)":"rgba(255,255,255,.02)",border:`1px solid ${sommeilJour?"#60a5fa33":"rgba(96,165,250,.1)"}`,borderRadius:8,cursor:"pointer",transition:"all .2s" }}>
+          <p style={{ color:"#60a5fa",fontSize:9,fontFamily:"'Orbitron',monospace",marginBottom:3 }}>🌙 SOMMEIL</p>
+          <p style={{ color:sommeilJour?"#60a5fa":"rgba(255,255,255,.22)",fontSize:11,fontFamily:"'Orbitron',monospace" }}>{sommeilJour?"✓ +10xp":"+ LOG"}</p>
+        </button>
+        <div style={{ padding:"10px 10px",background:"rgba(255,213,0,.03)",border:"1px solid rgba(255,213,0,.1)",borderRadius:8 }}>
+          <p style={{ color:"#ffd700",fontSize:9,fontFamily:"'Orbitron',monospace",marginBottom:5 }}>✦ ÉNERGIE</p>
+          <div style={{ display:"flex",gap:2 }}>
+            {[1,2,3,4,5,6,7,8,9,10].map(n=>(
+              <button key={n} onClick={()=>onEnergie(n)} style={{ flex:1,height:13,borderRadius:1,background:(energieJour||0)>=n?n>=8?"#00ff64":n>=5?"#ffd700":"#f97316":"rgba(255,255,255,.05)",border:"none",cursor:"pointer",transition:"all .15s" }}/>
+            ))}
+          </div>
+        </div>
+      </div>
+      {/* Aurele */}
+      <div style={{ background:aureleJour?"rgba(167,139,250,.07)":"rgba(167,139,250,.03)",border:`1px solid ${aureleJour?"#a78bfa2e":"rgba(167,139,250,.09)"}`,borderRadius:8,padding:"10px 13px",marginBottom:13 }}>
+        <div style={{ display:"flex",justifyContent:"space-between",alignItems:"flex-start" }}>
+          <div style={{flex:1}}>
+            <p style={{ color:"#a78bfa",fontSize:9,fontFamily:"'Orbitron',monospace",marginBottom:4 }}>◎ AURÈLE</p>
+            {aureleJour?(<>
+              <p style={{ color:"rgba(167,139,250,.65)",fontSize:11,fontStyle:"italic",lineHeight:1.55,marginBottom:aureleAnswer?3:5 }}>"{aureleJour}"</p>
+              {aureleAnswer&&!showAns&&<p style={{ color:"rgba(255,255,255,.28)",fontSize:10 }}>→ {aureleAnswer}</p>}
+              {!aureleAnswer&&!showAns&&<button onClick={()=>setShowAns(true)} style={{ color:"#a78bfa55",fontSize:8,background:"none",border:"1px solid rgba(167,139,250,.14)",padding:"3px 8px",borderRadius:3,cursor:"pointer",fontFamily:"'Orbitron',monospace" }}>+ RÉPONDRE</button>}
+              {showAns&&<div style={{marginTop:6}}><textarea value={ansText} onChange={e=>setAnsText(e.target.value)} rows={2} placeholder="Ta réflexion..." style={{ width:"100%",padding:"6px 9px",background:"rgba(167,139,250,.05)",border:"1px solid rgba(167,139,250,.18)",borderRadius:3,color:"#a78bfa",resize:"none",fontSize:10,fontFamily:"'Orbitron',monospace",outline:"none" }}/><button onClick={()=>{onAureleAnswer(ansText);setShowAns(false);}} style={{ marginTop:5,padding:"4px 10px",background:"rgba(167,139,250,.1)",border:"1px solid #a78bfa33",color:"#a78bfa",fontSize:9,cursor:"pointer",fontFamily:"'Orbitron',monospace",borderRadius:3 }}>SAUVER</button></div>}
+            </>):<p style={{ color:"rgba(255,255,255,.18)",fontSize:10 }}>Question interne du jour</p>}
+          </div>
+          {!aureleJour&&<button onClick={onAurele} style={{ padding:"5px 10px",borderRadius:3,background:"rgba(255,255,255,.02)",border:"1px solid rgba(167,139,250,.16)",color:"rgba(255,255,255,.2)",fontSize:9,cursor:"pointer",fontFamily:"'Orbitron',monospace" }}>+ RÉVÉLER</button>}
+        </div>
+      </div>
+      {/* Votes */}
+      <div style={{ background:"rgba(255,255,255,.02)",border:"1px solid rgba(255,255,255,.05)",borderRadius:8,padding:"12px 13px" }}>
+        <div style={{ display:"flex",justifyContent:"space-between",marginBottom:10 }}>
+          <p style={{ color:"rgba(255,255,255,.18)",fontSize:8,letterSpacing:3,fontFamily:"'Orbitron',monospace" }}>{f?.icon} VOTES ACTIFS</p>
+          <span style={{ color:f?.color,fontSize:8,fontFamily:"'Orbitron',monospace" }}>{doneCount}/{vData.length}</span>
+        </div>
+        <div style={{ display:"flex",flexDirection:"column",gap:6 }}>
+          {vData.map(v=>{
+            const done=!!votesJour[v.label];
+            return (
+              <button key={v.label} onClick={()=>onVote(v)} style={{ display:"flex",alignItems:"center",justifyContent:"space-between",padding:"9px 11px",background:done?`${f?.color}0c`:"rgba(255,255,255,.02)",border:`1px solid ${done?f?.color+"2a":"rgba(255,255,255,.04)"}`,borderRadius:4,cursor:"pointer",transition:"all .2s",boxShadow:done?`inset 0 0 18px ${f?.color}07`:"none" }}>
+                <div style={{ display:"flex",alignItems:"center",gap:9 }}><span style={{fontSize:12}}>{v.icon}</span><span style={{ color:done?f?.color:"rgba(255,255,255,.38)",fontSize:11,fontFamily:"'Orbitron',monospace" }}>{v.label}</span></div>
+                <div style={{ display:"flex",alignItems:"center",gap:7 }}>
+                  <span style={{ color:"#00ff6430",fontSize:8,fontFamily:"'Orbitron',monospace" }}>+{v.xp}</span>
+                  <div style={{ width:13,height:13,borderRadius:"50%",border:`1.5px solid ${done?f?.color:"rgba(255,255,255,.1)"}`,background:done?f?.color:"transparent",display:"flex",alignItems:"center",justifyContent:"center",transition:"all .2s",boxShadow:done?`0 0 7px ${f?.color}`:"none" }}>
+                    {done&&<span style={{color:"#000",fontSize:7}}>✓</span>}
+                  </div>
+                </div>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+      <div style={{padding:"0 16px 16px"}}>
+        <button onClick={onDayClose} style={{width:"100%",marginTop:14,padding:"13px",background:"rgba(167,139,250,.08)",border:"1px solid rgba(167,139,250,.3)",borderRadius:6,color:"#a78bfa",fontFamily:"'Orbitron',monospace",fontSize:10,letterSpacing:3,cursor:"pointer",transition:"all .2s"}}>✦ SCELLER LA JOURNÉE</button>
+      </div>
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════
+// QUESTS SCREEN
+// ═══════════════════════════════════════════════════════════
+function QuestsScreen({ state, onChangeFacette, onKryos }) {
+  const { totalVotes,xp,histoire={},facetteId,facettesState={},votesJour={} } = state;
+  const joursFaits=Object.keys(histoire).length; const streak=getStreak(histoire);
+  const fcs=facettesState[facetteId]||{xp:0}; const fRank=getRank(fcs.xp||0);
+  const [showSwitch,setShowSwitch]=useState(false);
+  const ach=[
+    {label:"Premier Souffle",    desc:"Premier vote accompli",           done:(totalVotes||0)>=1,  xpR:10, icon:"🌱", kryos:"first_vote"},
+    {label:"Triplé",             desc:"3 votes en une journée",          done:Object.values(votesJour).filter(Boolean).length>=3, xpR:20, icon:"⚡"},
+    {label:"3 Jours",            desc:"Streak de 3 jours",              done:streak>=3,           xpR:30, icon:"🔥", kryos:"streak_3"},
+    {label:"Semaine Forgée",     desc:"7 jours validés",                done:joursFaits>=7,       xpR:50, icon:"⚔", kryos:"streak_7"},
+    {label:"Rang D",             desc:"50 XP atteint",                  done:(xp||0)>=50,         xpR:0,  icon:"🟢", kryos:"rank_D"},
+    {label:"Boss Terrassé",      desc:"Vaincre un boss hebdo",          done:!!(state.bossJour),  xpR:0,  icon:"💀", kryos:"boss_defeated"},
+    {label:"50 Votes",           desc:"Masse critique",                 done:(totalVotes||0)>=50, xpR:80, icon:"💎", kryos:"votes_50"},
+    {label:"Rang C",             desc:"150 XP atteint",                 done:(xp||0)>=150,        xpR:0,  icon:"🔵", kryos:"rank_C"},
+    {label:"30 Jours",           desc:"Un mois de discipline",          done:joursFaits>=30,      xpR:100,icon:"🌕"},
+    {label:"Rang B",             desc:"300 XP atteint",                 done:(xp||0)>=300,        xpR:0,  icon:"🟣", kryos:"rank_B"},
+    {label:"Aurèle x5",          desc:"5 réflexions Aurèle",           done:Object.values(histoire).filter(j=>j.aureleAnswer).length>=5, xpR:40,icon:"◎",kryos:"aurelis_answered"},
+    {label:"100 Votes",          desc:"Identité ancrée",                done:(totalVotes||0)>=100,xpR:150,icon:"✦",kryos:"votes_100"},
+    {label:"Streak 30j",         desc:"30 jours consécutifs",           done:streak>=30,          xpR:200,icon:"🌋"},
+    {label:"Rang A",             desc:"500 XP atteint",                 done:(xp||0)>=500,        xpR:0,  icon:"🟡",kryos:"rank_A"},
+    {label:"Facette Transcendée",desc:"Rang S sur la facette",          done:fRank.id==="S",      xpR:300,icon:"👑",kryos:"rank_S"},
+    {label:"90 Jours — Maître",  desc:"Mission complète",              done:joursFaits>=90,      xpR:500,icon:"🏆"},
+  ];
+  const done=ach.filter(a=>a.done).length;
+  return (
+    <div style={{ padding:"12px 16px 0" }}>
+      <div style={{ display:"flex",justifyContent:"space-between",marginBottom:7 }}>
+        <span style={{ color:"rgba(255,255,255,.18)",fontSize:8,fontFamily:"'Orbitron',monospace",letterSpacing:2 }}>ACHIEVEMENTS {done}/{ach.length}</span>
+        <span style={{ color:"#00ffcc",fontSize:8,fontFamily:"'Orbitron',monospace" }}>{Math.round(done/ach.length*100)}%</span>
+      </div>
+      <div style={{ background:"rgba(255,255,255,.04)",borderRadius:2,height:2,overflow:"hidden",marginBottom:14 }}>
+        <div style={{ height:"100%",width:`${done/ach.length*100}%`,background:"linear-gradient(90deg,#00ffcc33,#00ffcc)",borderRadius:2,transition:"width 1s ease" }}/>
+      </div>
+      {fRank.id==="S"&&(
+        <div style={{ background:"rgba(239,68,68,.07)",border:"1px solid rgba(239,68,68,.22)",borderRadius:8,padding:"12px 13px",marginBottom:13,animation:"pulse 2s infinite" }}>
+          <p style={{ color:"#ef4444",fontSize:11,fontFamily:"'Orbitron',monospace",marginBottom:4 }}>👑 FACETTE TRANSCENDÉE</p>
+          <p style={{ color:"rgba(255,255,255,.32)",fontSize:10,marginBottom:10 }}>Rang S atteint. Active une nouvelle facette.</p>
+          {!showSwitch?<button onClick={()=>setShowSwitch(true)} style={{ padding:"8px 13px",background:"rgba(239,68,68,.12)",border:"1px solid #ef444455",borderRadius:4,color:"#ef4444",fontSize:9,cursor:"pointer",fontFamily:"'Orbitron',monospace",letterSpacing:2 }}>CHOISIR →</button>
+          :<div style={{ display:"flex",flexDirection:"column",gap:6 }}>
+            {FACETTES.filter(fc=>fc.id!==facetteId).map(fc=>(
+              <button key={fc.id} onClick={()=>{onChangeFacette(fc.id);setShowSwitch(false);}} style={{ display:"flex",alignItems:"center",gap:11,padding:"9px 12px",background:`${fc.color}07`,border:`1px solid ${fc.color}2a`,borderRadius:4,cursor:"pointer",transition:"all .2s" }}>
+                <span style={{color:fc.color,fontSize:15}}>{fc.icon}</span>
+                <span style={{color:fc.color,fontSize:10,fontFamily:"'Orbitron',monospace"}}>{fc.label}</span>
+                <span style={{color:"rgba(255,255,255,.18)",fontSize:8,marginLeft:"auto"}}>{getRank((facettesState[fc.id]||{xp:0}).xp).id}</span>
+              </button>
+            ))}
+          </div>}
+        </div>
+      )}
+      <div style={{ display:"flex",flexDirection:"column",gap:6 }}>
+        {ach.map((a,i)=>(
+          <div key={i} style={{ display:"flex",alignItems:"center",gap:10,padding:"10px 11px",background:a.done?"rgba(0,255,200,.04)":"rgba(255,255,255,.02)",border:`1px solid ${a.done?"rgba(0,255,200,.15)":"rgba(255,255,255,.04)"}`,borderRadius:6,opacity:a.done?1:.4,transition:"all .3s" }}>
+            <div style={{ width:27,height:27,borderRadius:"50%",flexShrink:0,background:a.done?"rgba(0,255,200,.1)":"rgba(255,255,255,.03)",border:`1px solid ${a.done?"rgba(0,255,200,.22)":"rgba(255,255,255,.06)"}`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:12,boxShadow:a.done?"0 0 10px rgba(0,255,200,.15)":"none" }}>{a.icon}</div>
+            <div style={{flex:1}}>
+              <p style={{ color:a.done?"#00ffcc":"rgba(255,255,255,.3)",fontSize:10,fontFamily:"'Orbitron',monospace",marginBottom:2 }}>{a.label}</p>
+              <p style={{ color:"rgba(255,255,255,.16)",fontSize:9 }}>{a.desc}</p>
+            </div>
+            <div style={{ display:"flex",alignItems:"center",gap:6 }}>
+              {a.xpR>0&&<span style={{ color:a.done?"#00ff64":"rgba(255,255,255,.1)",fontSize:8,fontFamily:"'Orbitron',monospace" }}>+{a.xpR}</span>}
+              {a.done&&a.kryos&&<button onClick={()=>onKryos(a.kryos)} style={{ background:"none",border:"none",cursor:"pointer",fontSize:14,opacity:.6 }} title="Kryos a quelque chose à dire"><GemFrog color="#00ffcc" size={20} mood="curious"/></button>}
+            </div>
+          </div>
+        ))}
+      </div>
+      <div style={{ marginTop:14,background:"rgba(167,139,250,.03)",border:"1px solid rgba(167,139,250,.08)",borderRadius:8,padding:"12px 13px" }}>
+        <p style={{ color:"#a78bfa55",fontSize:8,letterSpacing:3,fontFamily:"'Orbitron',monospace",marginBottom:9 }}>◎ JOURNAL AURÈLE</p>
+        {Object.entries(histoire).filter(([,j])=>j.aurele||j.aureleAnswer).slice(-4).reverse().map(([d,j])=>(
+          <div key={d} style={{ marginBottom:8,paddingBottom:8,borderBottom:"1px solid rgba(255,255,255,.03)" }}>
+            <p style={{ color:"rgba(255,255,255,.16)",fontSize:8,fontFamily:"'Orbitron',monospace",marginBottom:3 }}>{new Date(d).toLocaleDateString("fr-FR",{day:"numeric",month:"short"})}</p>
+            {j.aurele&&<p style={{ color:"rgba(167,139,250,.5)",fontSize:10,fontStyle:"italic",marginBottom:2 }}>"{j.aurele}"</p>}
+            {j.aureleAnswer&&<p style={{ color:"rgba(255,255,255,.28)",fontSize:10 }}>→ {j.aureleAnswer}</p>}
+          </div>
+        ))}
+        {Object.values(histoire).filter(j=>j.aurele||j.aureleAnswer).length===0&&<p style={{ color:"rgba(255,255,255,.1)",fontSize:10 }}>Aucune entrée.</p>}
+      </div>
+    </div>
+  );
+}
+
+
+// ═══════════════════════════════════════════════════════════
+// DAY CLOSE MODAL
+// ═══════════════════════════════════════════════════════════
+function DayCloseModal({ state, onClose, onKryos }) {
+  const f=FACETTES.find(fc=>fc.id===state.facetteId);
+  const vData=VOTES_DATA[state.facetteId]||[];
+  const votes=state.votesJour||{};
+  const doneVotes=vData.filter(v=>votes[v.label]);
+  const xpToday=doneVotes.reduce((a,v)=>a+v.xp,0)+(state.sommeilJour?10:0)+(state.bossJour?50:0);
+  const streak=getStreak(state.histoire||{});
+  const pct=Math.round(doneVotes.length/vData.length*100);
+  return(
+    <div style={{position:"fixed",inset:0,zIndex:1500,background:"rgba(2,2,12,.96)",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",padding:24,animation:"fadeInFast .3s ease"}}>
+      <div style={{maxWidth:380,width:"100%",textAlign:"center"}}>
+        <div style={{fontSize:28,marginBottom:14,letterSpacing:8}}>{pct>=80?"✦✦✦":pct>=50?"✦✦◇":"✦◇◇"}</div>
+        <p style={{color:f?.color,fontFamily:"'Orbitron',monospace",fontSize:11,letterSpacing:4,marginBottom:5}}>JOURNÉE SCELLÉE</p>
+        <p style={{color:"rgba(255,255,255,.18)",fontSize:9,fontFamily:"'Orbitron',monospace",letterSpacing:2,marginBottom:20}}>
+          {new Date().toLocaleDateString("fr-FR",{weekday:"long",day:"numeric",month:"long"}).toUpperCase()}
+        </p>
+        <div style={{background:"rgba(0,255,100,.07)",border:"1px solid rgba(0,255,100,.15)",borderRadius:8,padding:"12px",marginBottom:14}}>
+          <div style={{color:"#00ff64",fontSize:30,fontFamily:"'Orbitron',monospace",fontWeight:900,textShadow:"0 0 20px #00ff64",marginBottom:3}}>+{xpToday} XP</div>
+          <p style={{color:"rgba(255,255,255,.3)",fontSize:9,fontFamily:"'Orbitron',monospace"}}>GAGNÉS AUJOURD'HUI</p>
+        </div>
+        <div style={{background:"rgba(255,255,255,.03)",border:"1px solid rgba(255,255,255,.07)",borderRadius:8,padding:"10px",marginBottom:12,textAlign:"left"}}>
+          <p style={{color:"rgba(255,255,255,.2)",fontSize:8,letterSpacing:3,fontFamily:"'Orbitron',monospace",marginBottom:8}}>VOTES</p>
+          <div style={{display:"flex",flexDirection:"column",gap:4}}>
+            {vData.map(v=>{const done=!!votes[v.label];return<div key={v.label} style={{display:"flex",alignItems:"center",gap:7}}>
+              <div style={{width:11,height:11,borderRadius:"50%",background:done?f?.color:"rgba(255,255,255,.08)",border:`1px solid ${done?f?.color:"rgba(255,255,255,.1)"}`,display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>{done&&<span style={{color:"#000",fontSize:7}}>✓</span>}</div>
+              <span style={{color:done?f?.color:"rgba(255,255,255,.22)",fontSize:10,fontFamily:"'Orbitron',monospace"}}>{v.label}</span>
+              {done&&<span style={{color:"#00ff6444",fontSize:8,marginLeft:"auto",fontFamily:"'Orbitron',monospace"}}>+{v.xp}</span>}
+            </div>;})}
+          </div>
+        </div>
+        {streak>0&&<div style={{background:"rgba(245,158,11,.07)",border:"1px solid rgba(245,158,11,.2)",borderRadius:6,padding:"7px 12px",marginBottom:14,display:"flex",alignItems:"center",justifyContent:"center",gap:8}}>
+          <span style={{fontSize:16}}>🔥</span><span style={{color:"#f59e0b",fontSize:12,fontFamily:"'Orbitron',monospace",fontWeight:700}}>STREAK {streak} JOURS</span>
+        </div>}
+        <div style={{display:"flex",gap:8}}>
+          <button onClick={()=>{onKryos("day_close");onClose();}} style={{flex:1,padding:"11px",background:"rgba(167,139,250,.1)",border:"1px solid rgba(167,139,250,.3)",borderRadius:6,color:"#a78bfa",fontFamily:"'Orbitron',monospace",fontSize:9,letterSpacing:2,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",gap:6}}>
+            <GemFrog color="#a78bfa" size={16} mood="wise"/> KRYOS
+          </button>
+          <button onClick={onClose} style={{flex:2,padding:"11px",background:`${f?.color}12`,border:`1px solid ${f?.color}44`,borderRadius:6,color:f?.color,fontFamily:"'Orbitron',monospace",fontSize:9,letterSpacing:3,cursor:"pointer"}}>CONTINUER →</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+
+// ═══════════════════════════════════════════════════════════
+// FEEDBACK SCREEN
+// ═══════════════════════════════════════════════════════════
+function FeedbackScreen({ state, onSubmit }) {
+  const [rating,setRating]=useState(0);
+  const [text,setText]=useState("");
+  const [cat,setCat]=useState("general");
+  const [sent,setSent]=useState(false);
+  const f=FACETTES.find(fc=>fc.id===state.facetteId);
+  const cats=[{id:"general",l:"Général"},{id:"ux",l:"Interface"},{id:"concept",l:"Concept"},{id:"bug",l:"Bug"},{id:"idee",l:"Idée"}];
+  const submit=()=>{if(!text.trim())return;onSubmit({rating,text,cat,facetteId:state.facetteId,jour:Object.keys(state.histoire||{}).length,rang:getRank(state.xp||0).id,date:today()});setSent(true);};
+  if(sent) return(
+    <div style={{padding:"40px 20px",textAlign:"center"}}>
+      <div style={{animation:"float 3s ease-in-out infinite",marginBottom:16}}><GemFrog color={f?.color||"#00ffcc"} size={70} mood="proud"/></div>
+      <p style={{color:f?.color||"#00ffcc",fontFamily:"'Orbitron',monospace",fontSize:13,letterSpacing:3,marginBottom:7}}>FEEDBACK REÇU</p>
+      <p style={{color:"rgba(255,255,255,.3)",fontSize:11,fontFamily:"'Share Tech Mono',monospace",lineHeight:1.6}}>Merci. Chaque retour améliore le protocole pour tout le monde.</p>
+    </div>
+  );
+  return(
+    <div style={{padding:"16px 16px 0"}}>
+      <p style={{color:"rgba(255,255,255,.18)",fontSize:8,letterSpacing:3,fontFamily:"'Orbitron',monospace",marginBottom:5}}>FEEDBACK TESTEUR</p>
+      <div style={{background:"rgba(255,255,255,.03)",border:"1px solid rgba(255,255,255,.07)",borderRadius:6,padding:"9px 12px",marginBottom:14}}>
+        <p style={{color:"rgba(255,255,255,.25)",fontSize:10,fontFamily:"'Share Tech Mono',monospace"}}>
+          Jour {Object.keys(state.histoire||{}).length} · Rang {getRank(state.xp||0).id} · Facette {f?.label||"—"} · {Object.values(state.votesJour||{}).filter(Boolean).length} votes aujourd'hui
+        </p>
+      </div>
+      <div style={{display:"flex",gap:6,flexWrap:"wrap",marginBottom:13}}>
+        {cats.map(ct=>(<button key={ct.id} onClick={()=>setCat(ct.id)} style={{padding:"5px 11px",borderRadius:3,background:cat===ct.id?`${f?.color||"#00ffcc"}14`:"rgba(255,255,255,.03)",border:`1px solid ${cat===ct.id?(f?.color||"#00ffcc")+"44":"rgba(255,255,255,.07)"}`,color:cat===ct.id?(f?.color||"#00ffcc"):"rgba(255,255,255,.3)",fontSize:10,cursor:"pointer",fontFamily:"'Orbitron',monospace",transition:"all .2s"}}>{ct.l}</button>))}
+      </div>
+      <div style={{marginBottom:13}}>
+        <p style={{color:"rgba(255,255,255,.2)",fontSize:8,letterSpacing:3,fontFamily:"'Orbitron',monospace",marginBottom:7}}>NOTE</p>
+        <div style={{display:"flex",gap:8}}>{[1,2,3,4,5].map(n=>(<button key={n} onClick={()=>setRating(n)} style={{fontSize:20,background:"none",border:"none",cursor:"pointer",opacity:n<=rating?1:.25,transition:"all .2s",filter:n<=rating?`drop-shadow(0 0 6px ${f?.color||"#ffd700"})`:"none"}}>✦</button>))}</div>
+      </div>
+      <textarea value={text} onChange={e=>setText(e.target.value)} placeholder="Ce qui fonctionne, ce qui coince, ce qui manque..." rows={4} style={{width:"100%",padding:"10px 12px",background:"rgba(255,255,255,.03)",border:"1px solid rgba(255,255,255,.08)",borderRadius:6,color:"rgba(255,255,255,.7)",resize:"none",fontSize:12,fontFamily:"'Share Tech Mono',monospace",outline:"none",lineHeight:1.6,marginBottom:13}}/>
+      <button onClick={submit} style={{width:"100%",padding:"12px",background:text.trim()?`${f?.color||"#00ffcc"}12`:"rgba(255,255,255,.02)",border:`1px solid ${text.trim()?(f?.color||"#00ffcc")+"44":"rgba(255,255,255,.06)"}`,borderRadius:6,color:text.trim()?(f?.color||"#00ffcc"):"rgba(255,255,255,.2)",fontFamily:"'Orbitron',monospace",fontSize:10,letterSpacing:3,cursor:text.trim()?"pointer":"not-allowed",transition:"all .2s"}}>ENVOYER →</button>
+      {(state.feedbacks||[]).length>0&&(
+        <div style={{marginTop:14,background:"rgba(255,255,255,.02)",border:"1px solid rgba(255,255,255,.05)",borderRadius:8,padding:"11px 13px"}}>
+          <p style={{color:"rgba(255,255,255,.18)",fontSize:8,letterSpacing:3,fontFamily:"'Orbitron',monospace",marginBottom:9}}>MES FEEDBACKS</p>
+          {[...(state.feedbacks||[])].reverse().slice(0,3).map((fb,i)=>(
+            <div key={i} style={{marginBottom:7,paddingBottom:7,borderBottom:"1px solid rgba(255,255,255,.04)"}}>
+              <div style={{display:"flex",justifyContent:"space-between",marginBottom:2}}><span style={{color:"rgba(255,255,255,.2)",fontSize:8,fontFamily:"'Orbitron',monospace"}}>{fb.date} · J{fb.jour} · {fb.rang}</span><span style={{color:"#ffd700",fontSize:9}}>{"✦".repeat(fb.rating)}</span></div>
+              <p style={{color:"rgba(255,255,255,.32)",fontSize:10,fontFamily:"'Share Tech Mono',monospace"}}>{fb.text.slice(0,80)}{fb.text.length>80?"...":""}</p>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════
+// SETUP
+// ═══════════════════════════════════════════════════════════
+
+// ═══════════════════════════════════════════════════════════
+// PLAN SCREEN — choix d'offre
+// ═══════════════════════════════════════════════════════════
+
+// ═══════════════════════════════════════════════════════════
+// KRYOS QUESTIONNAIRE — intro + formulaire
+// ═══════════════════════════════════════════════════════════
+function KryosQuestionnaire({ facetteId, onDone, onSkip }) {
+  const f = FACETTES.find(fc => fc.id === facetteId);
+  const questions = QUESTIONS_PROGRAMME[facetteId] || QUESTIONS_PROGRAMME.athlete;
+  const intro = KRYOS_PROGRAMME_INTRO[facetteId] || KRYOS_PROGRAMME_INTRO.athlete;
+
+  const [phase, setPhase] = useState("intro"); // intro | form
+  const [introIdx, setIntroIdx] = useState(0);
+  const [introDone, setIntroDone] = useState(false);
+  const [introOut, setIntroOut] = useState("");
+  const [answers, setAnswers] = useState({});
+  const [loading, setLoading] = useState(false);
+  const timerRef = useRef(null);
+
+  const introLine = intro.lines[introIdx];
+  const rgb = f?.rgb || "0,255,204";
+  const color = f?.color || "#00ffcc";
+
+  // Typewriter effect
+  useEffect(() => {
+    if (phase !== "intro") return;
+    setIntroOut(""); setIntroDone(false);
+    let i = 0;
+    clearInterval(timerRef.current);
+    timerRef.current = setInterval(() => {
+      i++; setIntroOut(introLine.slice(0, i));
+      if (i >= introLine.length) { clearInterval(timerRef.current); setIntroDone(true); }
+    }, 22);
+    return () => clearInterval(timerRef.current);
+  }, [introIdx, phase]);
+
+  const advanceIntro = () => {
+    if (!introDone) { clearInterval(timerRef.current); setIntroOut(introLine); setIntroDone(true); return; }
+    if (introIdx < intro.lines.length - 1) setIntroIdx(i => i + 1);
+    else setPhase("form");
+  };
+
+  const allAnswered = questions.filter(q => q.type === "select").every(q => answers[q.id]);
+
+  const handleSubmit = async () => {
+    setLoading(true);
+    onDone(answers);
+  };
+
+  // ── INTRO PHASE (style KryosModal) ──
+  if (phase === "intro") return (
+    <div onClick={advanceIntro} style={{ position:"fixed",inset:0,zIndex:2000,
+      display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"flex-end",
+      background:"rgba(2,2,12,.96)", animation:"fadeInFast .22s ease" }}>
+      <div style={{ position:"absolute",top:36,left:0,right:0,textAlign:"center" }}>
+        <p style={{ color:`rgba(${rgb},.4)`,fontSize:9,fontFamily:"'Orbitron',monospace",letterSpacing:5 }}>{intro.title}</p>
+      </div>
+      <button onClick={e=>{e.stopPropagation();onSkip();}} style={{ position:"absolute",top:36,right:20,background:"none",border:"none",color:"rgba(255,255,255,.2)",fontSize:9,fontFamily:"'Orbitron',monospace",cursor:"pointer",letterSpacing:2 }}>PASSER</button>
+      <div style={{ marginBottom:-8,zIndex:1,animation:"float 4s ease-in-out infinite" }}>
+        <GemFrog color={color} size={152} mood={intro.mood||"wise"} />
+      </div>
+      <div style={{ width:"100%",maxWidth:520,background:`linear-gradient(180deg,rgba(6,6,22,.98) 0%,rgba(4,4,16,1) 100%)`,
+        borderTop:`1px solid rgba(${rgb},.18)`,padding:"26px 22px 44px",position:"relative" }}>
+        {[[true,true],[true,false],[false,true],[false,false]].map(([t,l],i)=>(
+          <div key={i} style={{ position:"absolute",top:t?9:"auto",bottom:t?"auto":9,left:l?9:"auto",right:l?"auto":9,width:12,height:12,
+            borderTop:t?`1px solid rgba(${rgb},.32)`:"none",borderBottom:t?"none":`1px solid rgba(${rgb},.32)`,
+            borderLeft:l?`1px solid rgba(${rgb},.32)`:"none",borderRight:l?"none":`1px solid rgba(${rgb},.32)` }}/>
+        ))}
+        <div style={{ display:"flex",alignItems:"center",gap:8,marginBottom:14 }}>
+          <div style={{ width:5,height:5,borderRadius:"50%",background:color,boxShadow:`0 0 7px ${color}`,animation:"pulse 2s infinite" }}/>
+          <span style={{ color,fontSize:10,fontFamily:"'Orbitron',monospace",letterSpacing:3 }}>KRYOS</span>
+          <span style={{ color:`rgba(${rgb},.25)`,fontSize:9,fontFamily:"'Orbitron',monospace" }}>— PROGRAMME PERSONNALISÉ</span>
+        </div>
+        <p style={{ color:"rgba(255,255,255,.82)",fontSize:13.5,lineHeight:1.8,minHeight:60,fontFamily:"'Share Tech Mono',monospace" }}>
+          {introOut}{!introDone&&<span style={{color,animation:"blink .65s infinite"}}>█</span>}
+        </p>
+        <div style={{ display:"flex",gap:4,marginTop:18,justifyContent:"center" }}>
+          {intro.lines.map((_,i)=>(
+            <div key={i} style={{ height:2,borderRadius:1,width:i===introIdx?18:5,
+              background:i<=introIdx?color:`rgba(${rgb},.16)`,transition:"all .3s" }}/>
+          ))}
+        </div>
+        {introDone&&<p style={{ textAlign:"center",marginTop:12,color:`rgba(${rgb},.32)`,fontSize:8,fontFamily:"'Orbitron',monospace",letterSpacing:3,animation:"pulse 1.5s infinite" }}>
+          {introIdx<intro.lines.length-1?"[ CONTINUER ]":"[ RÉPONDRE AUX QUESTIONS ]"}
+        </p>}
+      </div>
+    </div>
+  );
+
+  // ── FORM PHASE ──
+  return (
+    <div style={{ position:"fixed",inset:0,zIndex:2000,background:"rgba(2,2,12,.97)",overflowY:"auto",animation:"fadeInFast .22s ease" }}>
+      <div style={{ maxWidth:520,margin:"0 auto",padding:"24px 18px 80px" }}>
+        {/* Header */}
+        <div style={{ display:"flex",alignItems:"center",gap:10,marginBottom:24 }}>
+          <GemFrog color={color} size={32} mood="curious"/>
+          <div>
+            <p style={{ color,fontFamily:"'Orbitron',monospace",fontSize:11,letterSpacing:3 }}>KRYOS — QUESTIONS</p>
+            <p style={{ color:"rgba(255,255,255,.2)",fontSize:9,fontFamily:"'Share Tech Mono',monospace" }}>Réponds honnêtement pour un programme adapté</p>
+          </div>
+          <button onClick={onSkip} style={{ marginLeft:"auto",background:"none",border:"none",color:"rgba(255,255,255,.2)",fontSize:9,fontFamily:"'Orbitron',monospace",cursor:"pointer",letterSpacing:1 }}>PASSER</button>
+        </div>
+
+        {/* Questions */}
+        <div style={{ display:"flex",flexDirection:"column",gap:14 }}>
+          {questions.map((q, i) => (
+            <div key={q.id} style={{ animation:`fadeIn .3s ease ${i*0.05}s both` }}>
+              <div style={{ display:"flex",alignItems:"center",gap:8,marginBottom:8 }}>
+                <div style={{ width:18,height:18,borderRadius:"50%",background:`${color}18`,border:`1px solid ${color}33`,
+                  display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0 }}>
+                  <span style={{ color,fontSize:8,fontFamily:"'Orbitron',monospace",fontWeight:700 }}>{i+1}</span>
+                </div>
+                <p style={{ color:"rgba(255,255,255,.6)",fontSize:11,fontFamily:"'Orbitron',monospace",letterSpacing:1 }}>{q.label}</p>
+              </div>
+
+              {q.type === "select" ? (
+                <div style={{ display:"flex",flexDirection:"column",gap:5 }}>
+                  {q.options.map(opt => (
+                    <button key={opt} onClick={() => setAnswers(a=>({...a,[q.id]:opt}))}
+                      style={{ padding:"9px 13px",textAlign:"left",borderRadius:4,cursor:"pointer",transition:"all .15s",
+                        background:answers[q.id]===opt?`${color}12`:"rgba(255,255,255,.02)",
+                        border:`1px solid ${answers[q.id]===opt?color+"44":"rgba(255,255,255,.06)"}`,
+                        color:answers[q.id]===opt?color:"rgba(255,255,255,.35)",
+                        fontSize:11,fontFamily:"'Share Tech Mono',monospace" }}>
+                      <span style={{ marginRight:8,opacity:answers[q.id]===opt?1:.3 }}>{answers[q.id]===opt?"◆":"◇"}</span>
+                      {opt}
+                    </button>
+                  ))}
+                </div>
+              ) : (
+                <textarea value={answers[q.id]||""} onChange={e=>setAnswers(a=>({...a,[q.id]:e.target.value}))}
+                  placeholder={q.placeholder} rows={2}
+                  style={{ width:"100%",padding:"10px 12px",background:"rgba(255,255,255,.03)",
+                    border:`1px solid ${answers[q.id]?""+color+"33":"rgba(255,255,255,.08)"}`,
+                    borderRadius:4,color:"rgba(255,255,255,.7)",resize:"none",fontSize:11,
+                    fontFamily:"'Share Tech Mono',monospace",outline:"none",lineHeight:1.6 }}/>
+              )}
+            </div>
+          ))}
+        </div>
+
+        {/* Submit */}
+        <div style={{ marginTop:24,position:"sticky",bottom:20 }}>
+          <button onClick={handleSubmit} disabled={!allAnswered||loading}
+            style={{ width:"100%",padding:"14px",borderRadius:6,cursor:allAnswered&&!loading?"pointer":"not-allowed",
+              background:allAnswered?`${color}12`:"rgba(255,255,255,.02)",
+              border:`1px solid ${allAnswered?color+"44":"rgba(255,255,255,.06)"}`,
+              color:allAnswered?color:"rgba(255,255,255,.2)",
+              fontFamily:"'Orbitron',monospace",fontSize:10,letterSpacing:3,transition:"all .2s" }}>
+            {loading?"✦ GÉNÉRATION EN COURS...":"✦ GÉNÉRER MON PROGRAMME →"}
+          </button>
+          {!allAnswered && <p style={{ textAlign:"center",marginTop:8,color:"rgba(255,255,255,.15)",fontSize:9,fontFamily:"'Share Tech Mono',monospace" }}>
+            Réponds à toutes les questions à choix pour continuer
+          </p>}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function PlanScreen({ currentTier, onSelect }) {
+  const [selected, setSelected] = useState(currentTier || "gratuit");
+  return (
+    <div style={{ padding:"16px 16px 0" }}>
+      <p style={{ color:"rgba(255,255,255,.18)",fontSize:8,letterSpacing:3,fontFamily:"'Orbitron',monospace",marginBottom:4 }}>PROTOCOLE</p>
+      <h2 style={{ color:"#fff",fontFamily:"'Orbitron',monospace",fontSize:16,letterSpacing:2,marginBottom:4 }}>CHOISIR TON PLAN</h2>
+      <p style={{ color:"rgba(255,255,255,.25)",fontSize:10,fontFamily:"'Share Tech Mono',monospace",marginBottom:18,lineHeight:1.6 }}>
+        Chaque plan débarre la même transformation. La différence : le niveau de personnalisation de l'IA.
+      </p>
+      <div style={{ display:"flex",flexDirection:"column",gap:10,marginBottom:20 }}>
+        {TIERS.map(tier => {
+          const isActive = selected === tier.id;
+          const isCurrent = currentTier === tier.id;
+          return (
+            <div key={tier.id} onClick={() => setSelected(tier.id)}
+              style={{ background:isActive?`rgba(${tier.rgb},.07)`:"rgba(255,255,255,.02)",
+                border:`1px solid ${isActive?tier.color+"44":"rgba(255,255,255,.06)"}`,
+                borderRadius:8,padding:"14px 16px",cursor:"pointer",transition:"all .2s",
+                boxShadow:isActive?`0 0 20px rgba(${tier.rgb},.08)`:""  }}>
+              <div style={{ display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:10 }}>
+                <div style={{ display:"flex",alignItems:"center",gap:8 }}>
+                  <span style={{ color:tier.color,fontSize:18,textShadow:`0 0 10px ${tier.color}` }}>{tier.icon}</span>
+                  <div>
+                    <p style={{ color:tier.color,fontFamily:"'Orbitron',monospace",fontSize:11,letterSpacing:2 }}>{tier.label}</p>
+                    {isCurrent && <p style={{ color:`${tier.color}88`,fontSize:8,fontFamily:"'Orbitron',monospace",letterSpacing:2 }}>PLAN ACTUEL</p>}
+                  </div>
+                </div>
+                <div style={{ textAlign:"right" }}>
+                  <p style={{ color:tier.id==="gratuit"?"#22c55e":tier.color,fontFamily:"'Orbitron',monospace",fontSize:13,fontWeight:700 }}>{tier.price}</p>
+                  {tier.id!=="gratuit" && <p style={{ color:"rgba(255,255,255,.2)",fontSize:8,fontFamily:"'Orbitron',monospace" }}>BIENTÔT</p>}
+                </div>
+              </div>
+              <div style={{ display:"flex",flexDirection:"column",gap:5 }}>
+                {tier.features.map((f,i) => (
+                  <div key={i} style={{ display:"flex",alignItems:"center",gap:7 }}>
+                    <div style={{ width:5,height:5,borderRadius:"50%",background:tier.locked.length===0||i===0?tier.color:`${tier.color}33`,flexShrink:0 }}/>
+                    <span style={{ color:tier.locked.length===0||i===0?"rgba(255,255,255,.45)":"rgba(255,255,255,.18)",fontSize:10,fontFamily:"'Share Tech Mono',monospace" }}>{f}</span>
+                    {tier.id!=="gratuit" && i>0 && <span style={{ marginLeft:"auto",color:`${tier.color}44`,fontSize:8,fontFamily:"'Orbitron',monospace" }}>🔒</span>}
+                  </div>
+                ))}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+      <button onClick={() => onSelect(selected)}
+        style={{ width:"100%",padding:"13px",background:"rgba(0,255,200,.07)",border:"1px solid rgba(0,255,200,.3)",
+          borderRadius:6,color:"#00ffcc",fontFamily:"'Orbitron',monospace",fontSize:10,letterSpacing:3,cursor:"pointer" }}>
+        CONTINUER AVEC {TIERS.find(t=>t.id===selected)?.label} →
+      </button>
+      <p style={{ textAlign:"center",marginTop:10,color:"rgba(255,255,255,.15)",fontSize:9,fontFamily:"'Share Tech Mono',monospace" }}>
+        Les plans payants arrivent bientôt. Pour l'instant tout est gratuit.
+      </p>
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════
+// PROGRAMME SCREEN
+// ═══════════════════════════════════════════════════════════
+function ProgrammeScreen({ state, onKryos }) {
+  const { programmeIA, programmeDate, facetteId, tier } = state;
+  const f = FACETTES.find(fc => fc.id === facetteId);
+  const currentTier = tier || "gratuit";
+  const [activeTab, setActiveTab] = useState("sport");
+
+  const tabs = [
+    { id:"sport",     label:"SPORT",  icon:"⚡" },
+    { id:"lectures",  label:"LIVRES", icon:"📖" },
+    { id:"habitudes", label:"HABITS", icon:"🔥" },
+    { id:"planning",  label:"SEMAINE",icon:"📅" },
+  ];
+
+  const template = PROGRAMME_TEMPLATE[facetteId] || PROGRAMME_TEMPLATE.athlete;
+  const programme = programmeIA || {
+    sport: template.sport,
+    lectures: template.lectures,
+    habitudes: template.habitudes,
+    planning: template.emploi_du_temps,
+    generated: false,
+  };
+
+  const tabContent = {
+    sport:    programme.sport || [],
+    lectures: programme.lectures || [],
+    habitudes:programme.habitudes || [],
+    planning: programme.planning || [],
+  };
+
+  // ── PLAN CARDS ──
+  const planCards = [
+    {
+      id: "gratuit",
+      label: "GEMME BRUTE",
+      price: "Gratuit",
+      mood: "neutral",
+      color: "#4b5563",
+      rgb: "75,85,99",
+      icon: "◇",
+      locked: false,
+      desc: "Programme personnalisé par IA selon ta facette et tes réponses. Mis à jour à chaque nouveau questionnaire.",
+      features: ["Programme sport / lectures / habitudes", "Planning semaine type", "Questionnaire personnalisé", "Adapté à ta facette"],
+    },
+    {
+      id: "faconne",
+      label: "GEMME POLIE",
+      price: "9€/mois",
+      mood: "curious",
+      color: "#00ffcc",
+      rgb: "0,255,204",
+      icon: "◈",
+      locked: true,
+      desc: "Kryos suit ta progression semaine par semaine. Chaque lundi il analyse tes stats et ajuste ton programme.",
+      features: ["Tout le plan Gratuit", "Feedback hebdo → programme adapté", "Boss personnalisé par l'IA", "Kryos analyse tes performances"],
+      tease: "Kryos regarde tes stats depuis une semaine. Il a des choses à te dire.",
+    },
+    {
+      id: "maitrise",
+      label: "GEMME ABSOLUE",
+      price: "Sur devis",
+      mood: "wise",
+      color: "#ffd700",
+      rgb: "255,215,0",
+      icon: "✦",
+      locked: true,
+      desc: "Un programme 100% construit avec toi. Appel direct, objectifs sur mesure, suivi humain + IA.",
+      features: ["Programme entièrement personnalisé", "Appel de cadrage avec le dev", "Suivi humain + IA en parallèle", "Adapté à ta situation exacte"],
+      tease: "Ton cas est unique. Le programme doit l'être aussi.",
+    },
+  ];
+
+  return (
+    <div style={{ padding:"12px 16px 0" }}>
+
+      {/* Programme actif */}
+      <div style={{ marginBottom:18 }}>
+        <div style={{ display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10 }}>
+          <p style={{ color:"rgba(255,255,255,.18)",fontSize:8,letterSpacing:3,fontFamily:"'Orbitron',monospace" }}>
+            TON PROGRAMME — {f?.label.toUpperCase()}
+          </p>
+          {programme.generated
+            ? <span style={{ color:"#00ff6488",fontSize:8,fontFamily:"'Orbitron',monospace" }}>✦ IA · {programmeDate}</span>
+            : <span style={{ color:"rgba(255,255,255,.18)",fontSize:8,fontFamily:"'Orbitron',monospace" }}>BASE</span>
+          }
+        </div>
+
+        {/* Tabs */}
+        <div style={{ display:"flex",gap:5,marginBottom:10,overflowX:"auto" }}>
+          {tabs.map(t => (
+            <button key={t.id} onClick={() => setActiveTab(t.id)}
+              style={{ flexShrink:0,padding:"6px 12px",borderRadius:4,cursor:"pointer",transition:"all .15s",
+                background:activeTab===t.id?`${f?.color}14`:"rgba(255,255,255,.03)",
+                border:`1px solid ${activeTab===t.id?f?.color+"33":"rgba(255,255,255,.06)"}`,
+                color:activeTab===t.id?f?.color:"rgba(255,255,255,.25)",
+                fontSize:8,fontFamily:"'Orbitron',monospace",letterSpacing:1 }}>
+              {t.icon} {t.label}
+            </button>
+          ))}
+        </div>
+
+        <div style={{ background:"rgba(255,255,255,.02)",border:"1px solid rgba(255,255,255,.05)",borderRadius:8,padding:"12px 14px" }}>
+          <div style={{ display:"flex",flexDirection:"column",gap:7 }}>
+            {(tabContent[activeTab]||[]).map((item,i) => (
+              <div key={i} style={{ display:"flex",alignItems:"flex-start",gap:9 }}>
+                <div style={{ width:18,height:18,borderRadius:"50%",background:`${f?.color}15`,border:`1px solid ${f?.color}22`,
+                  display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0,marginTop:1 }}>
+                  <span style={{ color:f?.color,fontSize:8,fontFamily:"'Orbitron',monospace",fontWeight:700 }}>{i+1}</span>
+                </div>
+                <p style={{ color:"rgba(255,255,255,.5)",fontSize:11,fontFamily:"'Share Tech Mono',monospace",lineHeight:1.55,flex:1 }}>{item}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* Séparateur */}
+      <div style={{ display:"flex",alignItems:"center",gap:10,marginBottom:16 }}>
+        <div style={{ flex:1,height:1,background:"rgba(255,255,255,.05)" }}/>
+        <span style={{ color:"rgba(255,255,255,.15)",fontSize:8,fontFamily:"'Orbitron',monospace",letterSpacing:3 }}>PLANS</span>
+        <div style={{ flex:1,height:1,background:"rgba(255,255,255,.05)" }}/>
+      </div>
+
+      {/* 3 plan cards */}
+      <div style={{ display:"flex",flexDirection:"column",gap:10,paddingBottom:16 }}>
+        {planCards.map(plan => {
+          const isActive = currentTier === plan.id;
+          return (
+            <div key={plan.id}
+              style={{ borderRadius:10,padding:"14px 16px",
+                background:isActive?`rgba(${plan.rgb},.07)`:"rgba(255,255,255,.02)",
+                border:`1px solid ${isActive?plan.color+"44":plan.locked?"rgba(255,255,255,.05)":"rgba(255,255,255,.08)"}`,
+                opacity:plan.locked?0.75:1,
+                transition:"all .2s" }}>
+
+              {/* Card header */}
+              <div style={{ display:"flex",alignItems:"center",gap:10,marginBottom:10 }}>
+                <div style={{ flexShrink:0,animation:isActive?"float 4s ease-in-out infinite":"none" }}>
+                  <GemFrog color={plan.locked?"#4b5563":plan.color} size={38} mood={plan.mood}/>
+                </div>
+                <div style={{ flex:1 }}>
+                  <div style={{ display:"flex",alignItems:"center",gap:6,marginBottom:2 }}>
+                    <span style={{ color:plan.locked?"#4b5563":plan.color,fontSize:10,fontFamily:"'Orbitron',monospace",letterSpacing:2,fontWeight:700 }}>{plan.label}</span>
+                    {isActive && <span style={{ background:`${plan.color}22`,border:`1px solid ${plan.color}44`,borderRadius:3,padding:"1px 6px",color:plan.color,fontSize:7,fontFamily:"'Orbitron',monospace" }}>ACTIF</span>}
+                    {plan.locked && <span style={{ color:"rgba(255,255,255,.2)",fontSize:9 }}>🔒</span>}
+                  </div>
+                  <p style={{ color:plan.locked?"#22c55e":plan.id==="maitrise"?"#ffd700":"#22c55e",fontSize:11,fontFamily:"'Orbitron',monospace",fontWeight:700 }}>{plan.price}</p>
+                </div>
+              </div>
+
+              {/* Description */}
+              <p style={{ color:plan.locked?"rgba(255,255,255,.2)":"rgba(255,255,255,.4)",fontSize:10,fontFamily:"'Share Tech Mono',monospace",lineHeight:1.6,marginBottom:10 }}>
+                {plan.locked ? plan.tease : plan.desc}
+              </p>
+
+              {/* Features */}
+              <div style={{ display:"flex",flexDirection:"column",gap:4,marginBottom:plan.locked?10:0 }}>
+                {plan.features.map((feat,i) => (
+                  <div key={i} style={{ display:"flex",alignItems:"center",gap:6 }}>
+                    <div style={{ width:4,height:4,borderRadius:"50%",flexShrink:0,
+                      background:plan.locked&&i>0?"rgba(255,255,255,.1)":plan.locked?"rgba(255,255,255,.2)":plan.color,
+                      opacity:plan.locked&&i>0?0.4:1 }}/>
+                    <span style={{ color:plan.locked&&i>0?"rgba(255,255,255,.15)":"rgba(255,255,255,.35)",fontSize:9,fontFamily:"'Share Tech Mono',monospace" }}>{feat}</span>
+                  </div>
+                ))}
+              </div>
+
+              {/* CTA */}
+              {plan.id==="faconne" && plan.locked && (
+                <div style={{ marginTop:8,padding:"8px 12px",background:"rgba(0,255,204,.05)",border:"1px solid rgba(0,255,204,.12)",borderRadius:6 }}>
+                  <p style={{ color:"rgba(0,255,204,.4)",fontSize:9,fontFamily:"'Orbitron',monospace",letterSpacing:2 }}>BIENTÔT DISPONIBLE</p>
+                </div>
+              )}
+              {plan.id==="maitrise" && plan.locked && (
+                <a href="mailto:contact@gemvitale.com?subject=Programme Gemme Absolue&body=Bonjour, je suis intéressé par le programme personnalisé Gemme Absolue."
+                  style={{ display:"block",marginTop:8,padding:"9px 12px",background:"rgba(255,215,0,.06)",
+                    border:"1px solid rgba(255,215,0,.2)",borderRadius:6,
+                    color:"#ffd700",fontSize:9,fontFamily:"'Orbitron',monospace",letterSpacing:2,
+                    textDecoration:"none",textAlign:"center" }}>
+                  ✦ CONTACTER LE DEV →
+                </a>
+              )}
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+
+// ═══════════════════════════════════════════════════════════
+// KRYOS QUESTIONNAIRE — intro + formulaire
+// ═══════════════════════════════════════════════════════════
+function KryosQuestionnaire({ facetteId, onDone, onSkip }) {
+  const f = FACETTES.find(fc => fc.id === facetteId);
+  const questions = QUESTIONS_PROGRAMME[facetteId] || QUESTIONS_PROGRAMME.athlete;
+  const intro = KRYOS_PROGRAMME_INTRO[facetteId] || KRYOS_PROGRAMME_INTRO.athlete;
+
+  const [phase, setPhase] = useState("intro"); // intro | form
+  const [introIdx, setIntroIdx] = useState(0);
+  const [introDone, setIntroDone] = useState(false);
+  const [introOut, setIntroOut] = useState("");
+  const [answers, setAnswers] = useState({});
+  const [loading, setLoading] = useState(false);
+  const timerRef = useRef(null);
+
+  const introLine = intro.lines[introIdx];
+  const rgb = f?.rgb || "0,255,204";
+  const color = f?.color || "#00ffcc";
+
+  // Typewriter effect
+  useEffect(() => {
+    if (phase !== "intro") return;
+    setIntroOut(""); setIntroDone(false);
+    let i = 0;
+    clearInterval(timerRef.current);
+    timerRef.current = setInterval(() => {
+      i++; setIntroOut(introLine.slice(0, i));
+      if (i >= introLine.length) { clearInterval(timerRef.current); setIntroDone(true); }
+    }, 22);
+    return () => clearInterval(timerRef.current);
+  }, [introIdx, phase]);
+
+  const advanceIntro = () => {
+    if (!introDone) { clearInterval(timerRef.current); setIntroOut(introLine); setIntroDone(true); return; }
+    if (introIdx < intro.lines.length - 1) setIntroIdx(i => i + 1);
+    else setPhase("form");
+  };
+
+  const allAnswered = questions.filter(q => q.type === "select").every(q => answers[q.id]);
+
+  const handleSubmit = async () => {
+    setLoading(true);
+    onDone(answers);
+  };
+
+  // ── INTRO PHASE (style KryosModal) ──
+  if (phase === "intro") return (
+    <div onClick={advanceIntro} style={{ position:"fixed",inset:0,zIndex:2000,
+      display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"flex-end",
+      background:"rgba(2,2,12,.96)", animation:"fadeInFast .22s ease" }}>
+      <div style={{ position:"absolute",top:36,left:0,right:0,textAlign:"center" }}>
+        <p style={{ color:`rgba(${rgb},.4)`,fontSize:9,fontFamily:"'Orbitron',monospace",letterSpacing:5 }}>{intro.title}</p>
+      </div>
+      <button onClick={e=>{e.stopPropagation();onSkip();}} style={{ position:"absolute",top:36,right:20,background:"none",border:"none",color:"rgba(255,255,255,.2)",fontSize:9,fontFamily:"'Orbitron',monospace",cursor:"pointer",letterSpacing:2 }}>PASSER</button>
+      <div style={{ marginBottom:-8,zIndex:1,animation:"float 4s ease-in-out infinite" }}>
+        <GemFrog color={color} size={152} mood={intro.mood||"wise"} />
+      </div>
+      <div style={{ width:"100%",maxWidth:520,background:`linear-gradient(180deg,rgba(6,6,22,.98) 0%,rgba(4,4,16,1) 100%)`,
+        borderTop:`1px solid rgba(${rgb},.18)`,padding:"26px 22px 44px",position:"relative" }}>
+        {[[true,true],[true,false],[false,true],[false,false]].map(([t,l],i)=>(
+          <div key={i} style={{ position:"absolute",top:t?9:"auto",bottom:t?"auto":9,left:l?9:"auto",right:l?"auto":9,width:12,height:12,
+            borderTop:t?`1px solid rgba(${rgb},.32)`:"none",borderBottom:t?"none":`1px solid rgba(${rgb},.32)`,
+            borderLeft:l?`1px solid rgba(${rgb},.32)`:"none",borderRight:l?"none":`1px solid rgba(${rgb},.32)` }}/>
+        ))}
+        <div style={{ display:"flex",alignItems:"center",gap:8,marginBottom:14 }}>
+          <div style={{ width:5,height:5,borderRadius:"50%",background:color,boxShadow:`0 0 7px ${color}`,animation:"pulse 2s infinite" }}/>
+          <span style={{ color,fontSize:10,fontFamily:"'Orbitron',monospace",letterSpacing:3 }}>KRYOS</span>
+          <span style={{ color:`rgba(${rgb},.25)`,fontSize:9,fontFamily:"'Orbitron',monospace" }}>— PROGRAMME PERSONNALISÉ</span>
+        </div>
+        <p style={{ color:"rgba(255,255,255,.82)",fontSize:13.5,lineHeight:1.8,minHeight:60,fontFamily:"'Share Tech Mono',monospace" }}>
+          {introOut}{!introDone&&<span style={{color,animation:"blink .65s infinite"}}>█</span>}
+        </p>
+        <div style={{ display:"flex",gap:4,marginTop:18,justifyContent:"center" }}>
+          {intro.lines.map((_,i)=>(
+            <div key={i} style={{ height:2,borderRadius:1,width:i===introIdx?18:5,
+              background:i<=introIdx?color:`rgba(${rgb},.16)`,transition:"all .3s" }}/>
+          ))}
+        </div>
+        {introDone&&<p style={{ textAlign:"center",marginTop:12,color:`rgba(${rgb},.32)`,fontSize:8,fontFamily:"'Orbitron',monospace",letterSpacing:3,animation:"pulse 1.5s infinite" }}>
+          {introIdx<intro.lines.length-1?"[ CONTINUER ]":"[ RÉPONDRE AUX QUESTIONS ]"}
+        </p>}
+      </div>
+    </div>
+  );
+
+  // ── FORM PHASE ──
+  return (
+    <div style={{ position:"fixed",inset:0,zIndex:2000,background:"rgba(2,2,12,.97)",overflowY:"auto",animation:"fadeInFast .22s ease" }}>
+      <div style={{ maxWidth:520,margin:"0 auto",padding:"24px 18px 80px" }}>
+        {/* Header */}
+        <div style={{ display:"flex",alignItems:"center",gap:10,marginBottom:24 }}>
+          <GemFrog color={color} size={32} mood="curious"/>
+          <div>
+            <p style={{ color,fontFamily:"'Orbitron',monospace",fontSize:11,letterSpacing:3 }}>KRYOS — QUESTIONS</p>
+            <p style={{ color:"rgba(255,255,255,.2)",fontSize:9,fontFamily:"'Share Tech Mono',monospace" }}>Réponds honnêtement pour un programme adapté</p>
+          </div>
+          <button onClick={onSkip} style={{ marginLeft:"auto",background:"none",border:"none",color:"rgba(255,255,255,.2)",fontSize:9,fontFamily:"'Orbitron',monospace",cursor:"pointer",letterSpacing:1 }}>PASSER</button>
+        </div>
+
+        {/* Questions */}
+        <div style={{ display:"flex",flexDirection:"column",gap:14 }}>
+          {questions.map((q, i) => (
+            <div key={q.id} style={{ animation:`fadeIn .3s ease ${i*0.05}s both` }}>
+              <div style={{ display:"flex",alignItems:"center",gap:8,marginBottom:8 }}>
+                <div style={{ width:18,height:18,borderRadius:"50%",background:`${color}18`,border:`1px solid ${color}33`,
+                  display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0 }}>
+                  <span style={{ color,fontSize:8,fontFamily:"'Orbitron',monospace",fontWeight:700 }}>{i+1}</span>
+                </div>
+                <p style={{ color:"rgba(255,255,255,.6)",fontSize:11,fontFamily:"'Orbitron',monospace",letterSpacing:1 }}>{q.label}</p>
+              </div>
+
+              {q.type === "select" ? (
+                <div style={{ display:"flex",flexDirection:"column",gap:5 }}>
+                  {q.options.map(opt => (
+                    <button key={opt} onClick={() => setAnswers(a=>({...a,[q.id]:opt}))}
+                      style={{ padding:"9px 13px",textAlign:"left",borderRadius:4,cursor:"pointer",transition:"all .15s",
+                        background:answers[q.id]===opt?`${color}12`:"rgba(255,255,255,.02)",
+                        border:`1px solid ${answers[q.id]===opt?color+"44":"rgba(255,255,255,.06)"}`,
+                        color:answers[q.id]===opt?color:"rgba(255,255,255,.35)",
+                        fontSize:11,fontFamily:"'Share Tech Mono',monospace" }}>
+                      <span style={{ marginRight:8,opacity:answers[q.id]===opt?1:.3 }}>{answers[q.id]===opt?"◆":"◇"}</span>
+                      {opt}
+                    </button>
+                  ))}
+                </div>
+              ) : (
+                <textarea value={answers[q.id]||""} onChange={e=>setAnswers(a=>({...a,[q.id]:e.target.value}))}
+                  placeholder={q.placeholder} rows={2}
+                  style={{ width:"100%",padding:"10px 12px",background:"rgba(255,255,255,.03)",
+                    border:`1px solid ${answers[q.id]?""+color+"33":"rgba(255,255,255,.08)"}`,
+                    borderRadius:4,color:"rgba(255,255,255,.7)",resize:"none",fontSize:11,
+                    fontFamily:"'Share Tech Mono',monospace",outline:"none",lineHeight:1.6 }}/>
+              )}
+            </div>
+          ))}
+        </div>
+
+        {/* Submit */}
+        <div style={{ marginTop:24,position:"sticky",bottom:20 }}>
+          <button onClick={handleSubmit} disabled={!allAnswered||loading}
+            style={{ width:"100%",padding:"14px",borderRadius:6,cursor:allAnswered&&!loading?"pointer":"not-allowed",
+              background:allAnswered?`${color}12`:"rgba(255,255,255,.02)",
+              border:`1px solid ${allAnswered?color+"44":"rgba(255,255,255,.06)"}`,
+              color:allAnswered?color:"rgba(255,255,255,.2)",
+              fontFamily:"'Orbitron',monospace",fontSize:10,letterSpacing:3,transition:"all .2s" }}>
+            {loading?"✦ GÉNÉRATION EN COURS...":"✦ GÉNÉRER MON PROGRAMME →"}
+          </button>
+          {!allAnswered && <p style={{ textAlign:"center",marginTop:8,color:"rgba(255,255,255,.15)",fontSize:9,fontFamily:"'Share Tech Mono',monospace" }}>
+            Réponds à toutes les questions à choix pour continuer
+          </p>}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function PlanScreen({ currentTier, onSelect }) {
+  const [selected, setSelected] = useState(currentTier || "gratuit");
+  return (
+    <div style={{ padding:"16px 16px 0" }}>
+      <p style={{ color:"rgba(255,255,255,.18)",fontSize:8,letterSpacing:3,fontFamily:"'Orbitron',monospace",marginBottom:4 }}>PROTOCOLE</p>
+      <h2 style={{ color:"#fff",fontFamily:"'Orbitron',monospace",fontSize:16,letterSpacing:2,marginBottom:4 }}>CHOISIR TON PLAN</h2>
+      <p style={{ color:"rgba(255,255,255,.25)",fontSize:10,fontFamily:"'Share Tech Mono',monospace",marginBottom:18,lineHeight:1.6 }}>
+        Chaque plan débarre la même transformation. La différence : le niveau de personnalisation de l'IA.
+      </p>
+      <div style={{ display:"flex",flexDirection:"column",gap:10,marginBottom:20 }}>
+        {TIERS.map(tier => {
+          const isActive = selected === tier.id;
+          const isCurrent = currentTier === tier.id;
+          return (
+            <div key={tier.id} onClick={() => setSelected(tier.id)}
+              style={{ background:isActive?`rgba(${tier.rgb},.07)`:"rgba(255,255,255,.02)",
+                border:`1px solid ${isActive?tier.color+"44":"rgba(255,255,255,.06)"}`,
+                borderRadius:8,padding:"14px 16px",cursor:"pointer",transition:"all .2s",
+                boxShadow:isActive?`0 0 20px rgba(${tier.rgb},.08)`:""  }}>
+              <div style={{ display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:10 }}>
+                <div style={{ display:"flex",alignItems:"center",gap:8 }}>
+                  <span style={{ color:tier.color,fontSize:18,textShadow:`0 0 10px ${tier.color}` }}>{tier.icon}</span>
+                  <div>
+                    <p style={{ color:tier.color,fontFamily:"'Orbitron',monospace",fontSize:11,letterSpacing:2 }}>{tier.label}</p>
+                    {isCurrent && <p style={{ color:`${tier.color}88`,fontSize:8,fontFamily:"'Orbitron',monospace",letterSpacing:2 }}>PLAN ACTUEL</p>}
+                  </div>
+                </div>
+                <div style={{ textAlign:"right" }}>
+                  <p style={{ color:tier.id==="gratuit"?"#22c55e":tier.color,fontFamily:"'Orbitron',monospace",fontSize:13,fontWeight:700 }}>{tier.price}</p>
+                  {tier.id!=="gratuit" && <p style={{ color:"rgba(255,255,255,.2)",fontSize:8,fontFamily:"'Orbitron',monospace" }}>BIENTÔT</p>}
+                </div>
+              </div>
+              <div style={{ display:"flex",flexDirection:"column",gap:5 }}>
+                {tier.features.map((f,i) => (
+                  <div key={i} style={{ display:"flex",alignItems:"center",gap:7 }}>
+                    <div style={{ width:5,height:5,borderRadius:"50%",background:tier.locked.length===0||i===0?tier.color:`${tier.color}33`,flexShrink:0 }}/>
+                    <span style={{ color:tier.locked.length===0||i===0?"rgba(255,255,255,.45)":"rgba(255,255,255,.18)",fontSize:10,fontFamily:"'Share Tech Mono',monospace" }}>{f}</span>
+                    {tier.id!=="gratuit" && i>0 && <span style={{ marginLeft:"auto",color:`${tier.color}44`,fontSize:8,fontFamily:"'Orbitron',monospace" }}>🔒</span>}
+                  </div>
+                ))}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+      <button onClick={() => onSelect(selected)}
+        style={{ width:"100%",padding:"13px",background:"rgba(0,255,200,.07)",border:"1px solid rgba(0,255,200,.3)",
+          borderRadius:6,color:"#00ffcc",fontFamily:"'Orbitron',monospace",fontSize:10,letterSpacing:3,cursor:"pointer" }}>
+        CONTINUER AVEC {TIERS.find(t=>t.id===selected)?.label} →
+      </button>
+      <p style={{ textAlign:"center",marginTop:10,color:"rgba(255,255,255,.15)",fontSize:9,fontFamily:"'Share Tech Mono',monospace" }}>
+        Les plans payants arrivent bientôt. Pour l'instant tout est gratuit.
+      </p>
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════
+// PROGRAMME SCREEN — affiché dans l'onglet QUÊTES ou dédié
+// ═══════════════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════════════
+// KRYOS QUESTIONNAIRE — intro + formulaire
+// ═══════════════════════════════════════════════════════════
+function KryosQuestionnaire({ facetteId, onDone, onSkip }) {
+  const f = FACETTES.find(fc => fc.id === facetteId);
+  const questions = QUESTIONS_PROGRAMME[facetteId] || QUESTIONS_PROGRAMME.athlete;
+  const intro = KRYOS_PROGRAMME_INTRO[facetteId] || KRYOS_PROGRAMME_INTRO.athlete;
+
+  const [phase, setPhase] = useState("intro"); // intro | form
+  const [introIdx, setIntroIdx] = useState(0);
+  const [introDone, setIntroDone] = useState(false);
+  const [introOut, setIntroOut] = useState("");
+  const [answers, setAnswers] = useState({});
+  const [loading, setLoading] = useState(false);
+  const timerRef = useRef(null);
+
+  const introLine = intro.lines[introIdx];
+  const rgb = f?.rgb || "0,255,204";
+  const color = f?.color || "#00ffcc";
+
+  // Typewriter effect
+  useEffect(() => {
+    if (phase !== "intro") return;
+    setIntroOut(""); setIntroDone(false);
+    let i = 0;
+    clearInterval(timerRef.current);
+    timerRef.current = setInterval(() => {
+      i++; setIntroOut(introLine.slice(0, i));
+      if (i >= introLine.length) { clearInterval(timerRef.current); setIntroDone(true); }
+    }, 22);
+    return () => clearInterval(timerRef.current);
+  }, [introIdx, phase]);
+
+  const advanceIntro = () => {
+    if (!introDone) { clearInterval(timerRef.current); setIntroOut(introLine); setIntroDone(true); return; }
+    if (introIdx < intro.lines.length - 1) setIntroIdx(i => i + 1);
+    else setPhase("form");
+  };
+
+  const allAnswered = questions.filter(q => q.type === "select").every(q => answers[q.id]);
+
+  const handleSubmit = async () => {
+    setLoading(true);
+    onDone(answers);
+  };
+
+  // ── INTRO PHASE (style KryosModal) ──
+  if (phase === "intro") return (
+    <div onClick={advanceIntro} style={{ position:"fixed",inset:0,zIndex:2000,
+      display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"flex-end",
+      background:"rgba(2,2,12,.96)", animation:"fadeInFast .22s ease" }}>
+      <div style={{ position:"absolute",top:36,left:0,right:0,textAlign:"center" }}>
+        <p style={{ color:`rgba(${rgb},.4)`,fontSize:9,fontFamily:"'Orbitron',monospace",letterSpacing:5 }}>{intro.title}</p>
+      </div>
+      <button onClick={e=>{e.stopPropagation();onSkip();}} style={{ position:"absolute",top:36,right:20,background:"none",border:"none",color:"rgba(255,255,255,.2)",fontSize:9,fontFamily:"'Orbitron',monospace",cursor:"pointer",letterSpacing:2 }}>PASSER</button>
+      <div style={{ marginBottom:-8,zIndex:1,animation:"float 4s ease-in-out infinite" }}>
+        <GemFrog color={color} size={152} mood={intro.mood||"wise"} />
+      </div>
+      <div style={{ width:"100%",maxWidth:520,background:`linear-gradient(180deg,rgba(6,6,22,.98) 0%,rgba(4,4,16,1) 100%)`,
+        borderTop:`1px solid rgba(${rgb},.18)`,padding:"26px 22px 44px",position:"relative" }}>
+        {[[true,true],[true,false],[false,true],[false,false]].map(([t,l],i)=>(
+          <div key={i} style={{ position:"absolute",top:t?9:"auto",bottom:t?"auto":9,left:l?9:"auto",right:l?"auto":9,width:12,height:12,
+            borderTop:t?`1px solid rgba(${rgb},.32)`:"none",borderBottom:t?"none":`1px solid rgba(${rgb},.32)`,
+            borderLeft:l?`1px solid rgba(${rgb},.32)`:"none",borderRight:l?"none":`1px solid rgba(${rgb},.32)` }}/>
+        ))}
+        <div style={{ display:"flex",alignItems:"center",gap:8,marginBottom:14 }}>
+          <div style={{ width:5,height:5,borderRadius:"50%",background:color,boxShadow:`0 0 7px ${color}`,animation:"pulse 2s infinite" }}/>
+          <span style={{ color,fontSize:10,fontFamily:"'Orbitron',monospace",letterSpacing:3 }}>KRYOS</span>
+          <span style={{ color:`rgba(${rgb},.25)`,fontSize:9,fontFamily:"'Orbitron',monospace" }}>— PROGRAMME PERSONNALISÉ</span>
+        </div>
+        <p style={{ color:"rgba(255,255,255,.82)",fontSize:13.5,lineHeight:1.8,minHeight:60,fontFamily:"'Share Tech Mono',monospace" }}>
+          {introOut}{!introDone&&<span style={{color,animation:"blink .65s infinite"}}>█</span>}
+        </p>
+        <div style={{ display:"flex",gap:4,marginTop:18,justifyContent:"center" }}>
+          {intro.lines.map((_,i)=>(
+            <div key={i} style={{ height:2,borderRadius:1,width:i===introIdx?18:5,
+              background:i<=introIdx?color:`rgba(${rgb},.16)`,transition:"all .3s" }}/>
+          ))}
+        </div>
+        {introDone&&<p style={{ textAlign:"center",marginTop:12,color:`rgba(${rgb},.32)`,fontSize:8,fontFamily:"'Orbitron',monospace",letterSpacing:3,animation:"pulse 1.5s infinite" }}>
+          {introIdx<intro.lines.length-1?"[ CONTINUER ]":"[ RÉPONDRE AUX QUESTIONS ]"}
+        </p>}
+      </div>
+    </div>
+  );
+
+  // ── FORM PHASE ──
+  return (
+    <div style={{ position:"fixed",inset:0,zIndex:2000,background:"rgba(2,2,12,.97)",overflowY:"auto",animation:"fadeInFast .22s ease" }}>
+      <div style={{ maxWidth:520,margin:"0 auto",padding:"24px 18px 80px" }}>
+        {/* Header */}
+        <div style={{ display:"flex",alignItems:"center",gap:10,marginBottom:24 }}>
+          <GemFrog color={color} size={32} mood="curious"/>
+          <div>
+            <p style={{ color,fontFamily:"'Orbitron',monospace",fontSize:11,letterSpacing:3 }}>KRYOS — QUESTIONS</p>
+            <p style={{ color:"rgba(255,255,255,.2)",fontSize:9,fontFamily:"'Share Tech Mono',monospace" }}>Réponds honnêtement pour un programme adapté</p>
+          </div>
+          <button onClick={onSkip} style={{ marginLeft:"auto",background:"none",border:"none",color:"rgba(255,255,255,.2)",fontSize:9,fontFamily:"'Orbitron',monospace",cursor:"pointer",letterSpacing:1 }}>PASSER</button>
+        </div>
+
+        {/* Questions */}
+        <div style={{ display:"flex",flexDirection:"column",gap:14 }}>
+          {questions.map((q, i) => (
+            <div key={q.id} style={{ animation:`fadeIn .3s ease ${i*0.05}s both` }}>
+              <div style={{ display:"flex",alignItems:"center",gap:8,marginBottom:8 }}>
+                <div style={{ width:18,height:18,borderRadius:"50%",background:`${color}18`,border:`1px solid ${color}33`,
+                  display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0 }}>
+                  <span style={{ color,fontSize:8,fontFamily:"'Orbitron',monospace",fontWeight:700 }}>{i+1}</span>
+                </div>
+                <p style={{ color:"rgba(255,255,255,.6)",fontSize:11,fontFamily:"'Orbitron',monospace",letterSpacing:1 }}>{q.label}</p>
+              </div>
+
+              {q.type === "select" ? (
+                <div style={{ display:"flex",flexDirection:"column",gap:5 }}>
+                  {q.options.map(opt => (
+                    <button key={opt} onClick={() => setAnswers(a=>({...a,[q.id]:opt}))}
+                      style={{ padding:"9px 13px",textAlign:"left",borderRadius:4,cursor:"pointer",transition:"all .15s",
+                        background:answers[q.id]===opt?`${color}12`:"rgba(255,255,255,.02)",
+                        border:`1px solid ${answers[q.id]===opt?color+"44":"rgba(255,255,255,.06)"}`,
+                        color:answers[q.id]===opt?color:"rgba(255,255,255,.35)",
+                        fontSize:11,fontFamily:"'Share Tech Mono',monospace" }}>
+                      <span style={{ marginRight:8,opacity:answers[q.id]===opt?1:.3 }}>{answers[q.id]===opt?"◆":"◇"}</span>
+                      {opt}
+                    </button>
+                  ))}
+                </div>
+              ) : (
+                <textarea value={answers[q.id]||""} onChange={e=>setAnswers(a=>({...a,[q.id]:e.target.value}))}
+                  placeholder={q.placeholder} rows={2}
+                  style={{ width:"100%",padding:"10px 12px",background:"rgba(255,255,255,.03)",
+                    border:`1px solid ${answers[q.id]?""+color+"33":"rgba(255,255,255,.08)"}`,
+                    borderRadius:4,color:"rgba(255,255,255,.7)",resize:"none",fontSize:11,
+                    fontFamily:"'Share Tech Mono',monospace",outline:"none",lineHeight:1.6 }}/>
+              )}
+            </div>
+          ))}
+        </div>
+
+        {/* Submit */}
+        <div style={{ marginTop:24,position:"sticky",bottom:20 }}>
+          <button onClick={handleSubmit} disabled={!allAnswered||loading}
+            style={{ width:"100%",padding:"14px",borderRadius:6,cursor:allAnswered&&!loading?"pointer":"not-allowed",
+              background:allAnswered?`${color}12`:"rgba(255,255,255,.02)",
+              border:`1px solid ${allAnswered?color+"44":"rgba(255,255,255,.06)"}`,
+              color:allAnswered?color:"rgba(255,255,255,.2)",
+              fontFamily:"'Orbitron',monospace",fontSize:10,letterSpacing:3,transition:"all .2s" }}>
+            {loading?"✦ GÉNÉRATION EN COURS...":"✦ GÉNÉRER MON PROGRAMME →"}
+          </button>
+          {!allAnswered && <p style={{ textAlign:"center",marginTop:8,color:"rgba(255,255,255,.15)",fontSize:9,fontFamily:"'Share Tech Mono',monospace" }}>
+            Réponds à toutes les questions à choix pour continuer
+          </p>}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function PlanScreen({ currentTier, onSelect }) {
+  const [selected, setSelected] = useState(currentTier || "gratuit");
+  return (
+    <div style={{ padding:"16px 16px 0" }}>
+      <p style={{ color:"rgba(255,255,255,.18)",fontSize:8,letterSpacing:3,fontFamily:"'Orbitron',monospace",marginBottom:4 }}>PROTOCOLE</p>
+      <h2 style={{ color:"#fff",fontFamily:"'Orbitron',monospace",fontSize:16,letterSpacing:2,marginBottom:4 }}>CHOISIR TON PLAN</h2>
+      <p style={{ color:"rgba(255,255,255,.25)",fontSize:10,fontFamily:"'Share Tech Mono',monospace",marginBottom:18,lineHeight:1.6 }}>
+        Chaque plan débarre la même transformation. La différence : le niveau de personnalisation de l'IA.
+      </p>
+      <div style={{ display:"flex",flexDirection:"column",gap:10,marginBottom:20 }}>
+        {TIERS.map(tier => {
+          const isActive = selected === tier.id;
+          const isCurrent = currentTier === tier.id;
+          return (
+            <div key={tier.id} onClick={() => setSelected(tier.id)}
+              style={{ background:isActive?`rgba(${tier.rgb},.07)`:"rgba(255,255,255,.02)",
+                border:`1px solid ${isActive?tier.color+"44":"rgba(255,255,255,.06)"}`,
+                borderRadius:8,padding:"14px 16px",cursor:"pointer",transition:"all .2s",
+                boxShadow:isActive?`0 0 20px rgba(${tier.rgb},.08)`:""  }}>
+              <div style={{ display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:10 }}>
+                <div style={{ display:"flex",alignItems:"center",gap:8 }}>
+                  <span style={{ color:tier.color,fontSize:18,textShadow:`0 0 10px ${tier.color}` }}>{tier.icon}</span>
+                  <div>
+                    <p style={{ color:tier.color,fontFamily:"'Orbitron',monospace",fontSize:11,letterSpacing:2 }}>{tier.label}</p>
+                    {isCurrent && <p style={{ color:`${tier.color}88`,fontSize:8,fontFamily:"'Orbitron',monospace",letterSpacing:2 }}>PLAN ACTUEL</p>}
+                  </div>
+                </div>
+                <div style={{ textAlign:"right" }}>
+                  <p style={{ color:tier.id==="gratuit"?"#22c55e":tier.color,fontFamily:"'Orbitron',monospace",fontSize:13,fontWeight:700 }}>{tier.price}</p>
+                  {tier.id!=="gratuit" && <p style={{ color:"rgba(255,255,255,.2)",fontSize:8,fontFamily:"'Orbitron',monospace" }}>BIENTÔT</p>}
+                </div>
+              </div>
+              <div style={{ display:"flex",flexDirection:"column",gap:5 }}>
+                {tier.features.map((f,i) => (
+                  <div key={i} style={{ display:"flex",alignItems:"center",gap:7 }}>
+                    <div style={{ width:5,height:5,borderRadius:"50%",background:tier.locked.length===0||i===0?tier.color:`${tier.color}33`,flexShrink:0 }}/>
+                    <span style={{ color:tier.locked.length===0||i===0?"rgba(255,255,255,.45)":"rgba(255,255,255,.18)",fontSize:10,fontFamily:"'Share Tech Mono',monospace" }}>{f}</span>
+                    {tier.id!=="gratuit" && i>0 && <span style={{ marginLeft:"auto",color:`${tier.color}44`,fontSize:8,fontFamily:"'Orbitron',monospace" }}>🔒</span>}
+                  </div>
+                ))}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+      <button onClick={() => onSelect(selected)}
+        style={{ width:"100%",padding:"13px",background:"rgba(0,255,200,.07)",border:"1px solid rgba(0,255,200,.3)",
+          borderRadius:6,color:"#00ffcc",fontFamily:"'Orbitron',monospace",fontSize:10,letterSpacing:3,cursor:"pointer" }}>
+        CONTINUER AVEC {TIERS.find(t=>t.id===selected)?.label} →
+      </button>
+      <p style={{ textAlign:"center",marginTop:10,color:"rgba(255,255,255,.15)",fontSize:9,fontFamily:"'Share Tech Mono',monospace" }}>
+        Les plans payants arrivent bientôt. Pour l'instant tout est gratuit.
+      </p>
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════
+// PROGRAMME SCREEN
+// ═══════════════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════════════
+// KRYOS QUESTIONNAIRE — intro + formulaire
+// ═══════════════════════════════════════════════════════════
+function KryosQuestionnaire({ facetteId, onDone, onSkip }) {
+  const f = FACETTES.find(fc => fc.id === facetteId);
+  const questions = QUESTIONS_PROGRAMME[facetteId] || QUESTIONS_PROGRAMME.athlete;
+  const intro = KRYOS_PROGRAMME_INTRO[facetteId] || KRYOS_PROGRAMME_INTRO.athlete;
+
+  const [phase, setPhase] = useState("intro"); // intro | form
+  const [introIdx, setIntroIdx] = useState(0);
+  const [introDone, setIntroDone] = useState(false);
+  const [introOut, setIntroOut] = useState("");
+  const [answers, setAnswers] = useState({});
+  const [loading, setLoading] = useState(false);
+  const timerRef = useRef(null);
+
+  const introLine = intro.lines[introIdx];
+  const rgb = f?.rgb || "0,255,204";
+  const color = f?.color || "#00ffcc";
+
+  // Typewriter effect
+  useEffect(() => {
+    if (phase !== "intro") return;
+    setIntroOut(""); setIntroDone(false);
+    let i = 0;
+    clearInterval(timerRef.current);
+    timerRef.current = setInterval(() => {
+      i++; setIntroOut(introLine.slice(0, i));
+      if (i >= introLine.length) { clearInterval(timerRef.current); setIntroDone(true); }
+    }, 22);
+    return () => clearInterval(timerRef.current);
+  }, [introIdx, phase]);
+
+  const advanceIntro = () => {
+    if (!introDone) { clearInterval(timerRef.current); setIntroOut(introLine); setIntroDone(true); return; }
+    if (introIdx < intro.lines.length - 1) setIntroIdx(i => i + 1);
+    else setPhase("form");
+  };
+
+  const allAnswered = questions.filter(q => q.type === "select").every(q => answers[q.id]);
+
+  const handleSubmit = async () => {
+    setLoading(true);
+    onDone(answers);
+  };
+
+  // ── INTRO PHASE (style KryosModal) ──
+  if (phase === "intro") return (
+    <div onClick={advanceIntro} style={{ position:"fixed",inset:0,zIndex:2000,
+      display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"flex-end",
+      background:"rgba(2,2,12,.96)", animation:"fadeInFast .22s ease" }}>
+      <div style={{ position:"absolute",top:36,left:0,right:0,textAlign:"center" }}>
+        <p style={{ color:`rgba(${rgb},.4)`,fontSize:9,fontFamily:"'Orbitron',monospace",letterSpacing:5 }}>{intro.title}</p>
+      </div>
+      <button onClick={e=>{e.stopPropagation();onSkip();}} style={{ position:"absolute",top:36,right:20,background:"none",border:"none",color:"rgba(255,255,255,.2)",fontSize:9,fontFamily:"'Orbitron',monospace",cursor:"pointer",letterSpacing:2 }}>PASSER</button>
+      <div style={{ marginBottom:-8,zIndex:1,animation:"float 4s ease-in-out infinite" }}>
+        <GemFrog color={color} size={152} mood={intro.mood||"wise"} />
+      </div>
+      <div style={{ width:"100%",maxWidth:520,background:`linear-gradient(180deg,rgba(6,6,22,.98) 0%,rgba(4,4,16,1) 100%)`,
+        borderTop:`1px solid rgba(${rgb},.18)`,padding:"26px 22px 44px",position:"relative" }}>
+        {[[true,true],[true,false],[false,true],[false,false]].map(([t,l],i)=>(
+          <div key={i} style={{ position:"absolute",top:t?9:"auto",bottom:t?"auto":9,left:l?9:"auto",right:l?"auto":9,width:12,height:12,
+            borderTop:t?`1px solid rgba(${rgb},.32)`:"none",borderBottom:t?"none":`1px solid rgba(${rgb},.32)`,
+            borderLeft:l?`1px solid rgba(${rgb},.32)`:"none",borderRight:l?"none":`1px solid rgba(${rgb},.32)` }}/>
+        ))}
+        <div style={{ display:"flex",alignItems:"center",gap:8,marginBottom:14 }}>
+          <div style={{ width:5,height:5,borderRadius:"50%",background:color,boxShadow:`0 0 7px ${color}`,animation:"pulse 2s infinite" }}/>
+          <span style={{ color,fontSize:10,fontFamily:"'Orbitron',monospace",letterSpacing:3 }}>KRYOS</span>
+          <span style={{ color:`rgba(${rgb},.25)`,fontSize:9,fontFamily:"'Orbitron',monospace" }}>— PROGRAMME PERSONNALISÉ</span>
+        </div>
+        <p style={{ color:"rgba(255,255,255,.82)",fontSize:13.5,lineHeight:1.8,minHeight:60,fontFamily:"'Share Tech Mono',monospace" }}>
+          {introOut}{!introDone&&<span style={{color,animation:"blink .65s infinite"}}>█</span>}
+        </p>
+        <div style={{ display:"flex",gap:4,marginTop:18,justifyContent:"center" }}>
+          {intro.lines.map((_,i)=>(
+            <div key={i} style={{ height:2,borderRadius:1,width:i===introIdx?18:5,
+              background:i<=introIdx?color:`rgba(${rgb},.16)`,transition:"all .3s" }}/>
+          ))}
+        </div>
+        {introDone&&<p style={{ textAlign:"center",marginTop:12,color:`rgba(${rgb},.32)`,fontSize:8,fontFamily:"'Orbitron',monospace",letterSpacing:3,animation:"pulse 1.5s infinite" }}>
+          {introIdx<intro.lines.length-1?"[ CONTINUER ]":"[ RÉPONDRE AUX QUESTIONS ]"}
+        </p>}
+      </div>
+    </div>
+  );
+
+  // ── FORM PHASE ──
+  return (
+    <div style={{ position:"fixed",inset:0,zIndex:2000,background:"rgba(2,2,12,.97)",overflowY:"auto",animation:"fadeInFast .22s ease" }}>
+      <div style={{ maxWidth:520,margin:"0 auto",padding:"24px 18px 80px" }}>
+        {/* Header */}
+        <div style={{ display:"flex",alignItems:"center",gap:10,marginBottom:24 }}>
+          <GemFrog color={color} size={32} mood="curious"/>
+          <div>
+            <p style={{ color,fontFamily:"'Orbitron',monospace",fontSize:11,letterSpacing:3 }}>KRYOS — QUESTIONS</p>
+            <p style={{ color:"rgba(255,255,255,.2)",fontSize:9,fontFamily:"'Share Tech Mono',monospace" }}>Réponds honnêtement pour un programme adapté</p>
+          </div>
+          <button onClick={onSkip} style={{ marginLeft:"auto",background:"none",border:"none",color:"rgba(255,255,255,.2)",fontSize:9,fontFamily:"'Orbitron',monospace",cursor:"pointer",letterSpacing:1 }}>PASSER</button>
+        </div>
+
+        {/* Questions */}
+        <div style={{ display:"flex",flexDirection:"column",gap:14 }}>
+          {questions.map((q, i) => (
+            <div key={q.id} style={{ animation:`fadeIn .3s ease ${i*0.05}s both` }}>
+              <div style={{ display:"flex",alignItems:"center",gap:8,marginBottom:8 }}>
+                <div style={{ width:18,height:18,borderRadius:"50%",background:`${color}18`,border:`1px solid ${color}33`,
+                  display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0 }}>
+                  <span style={{ color,fontSize:8,fontFamily:"'Orbitron',monospace",fontWeight:700 }}>{i+1}</span>
+                </div>
+                <p style={{ color:"rgba(255,255,255,.6)",fontSize:11,fontFamily:"'Orbitron',monospace",letterSpacing:1 }}>{q.label}</p>
+              </div>
+
+              {q.type === "select" ? (
+                <div style={{ display:"flex",flexDirection:"column",gap:5 }}>
+                  {q.options.map(opt => (
+                    <button key={opt} onClick={() => setAnswers(a=>({...a,[q.id]:opt}))}
+                      style={{ padding:"9px 13px",textAlign:"left",borderRadius:4,cursor:"pointer",transition:"all .15s",
+                        background:answers[q.id]===opt?`${color}12`:"rgba(255,255,255,.02)",
+                        border:`1px solid ${answers[q.id]===opt?color+"44":"rgba(255,255,255,.06)"}`,
+                        color:answers[q.id]===opt?color:"rgba(255,255,255,.35)",
+                        fontSize:11,fontFamily:"'Share Tech Mono',monospace" }}>
+                      <span style={{ marginRight:8,opacity:answers[q.id]===opt?1:.3 }}>{answers[q.id]===opt?"◆":"◇"}</span>
+                      {opt}
+                    </button>
+                  ))}
+                </div>
+              ) : (
+                <textarea value={answers[q.id]||""} onChange={e=>setAnswers(a=>({...a,[q.id]:e.target.value}))}
+                  placeholder={q.placeholder} rows={2}
+                  style={{ width:"100%",padding:"10px 12px",background:"rgba(255,255,255,.03)",
+                    border:`1px solid ${answers[q.id]?""+color+"33":"rgba(255,255,255,.08)"}`,
+                    borderRadius:4,color:"rgba(255,255,255,.7)",resize:"none",fontSize:11,
+                    fontFamily:"'Share Tech Mono',monospace",outline:"none",lineHeight:1.6 }}/>
+              )}
+            </div>
+          ))}
+        </div>
+
+        {/* Submit */}
+        <div style={{ marginTop:24,position:"sticky",bottom:20 }}>
+          <button onClick={handleSubmit} disabled={!allAnswered||loading}
+            style={{ width:"100%",padding:"14px",borderRadius:6,cursor:allAnswered&&!loading?"pointer":"not-allowed",
+              background:allAnswered?`${color}12`:"rgba(255,255,255,.02)",
+              border:`1px solid ${allAnswered?color+"44":"rgba(255,255,255,.06)"}`,
+              color:allAnswered?color:"rgba(255,255,255,.2)",
+              fontFamily:"'Orbitron',monospace",fontSize:10,letterSpacing:3,transition:"all .2s" }}>
+            {loading?"✦ GÉNÉRATION EN COURS...":"✦ GÉNÉRER MON PROGRAMME →"}
+          </button>
+          {!allAnswered && <p style={{ textAlign:"center",marginTop:8,color:"rgba(255,255,255,.15)",fontSize:9,fontFamily:"'Share Tech Mono',monospace" }}>
+            Réponds à toutes les questions à choix pour continuer
+          </p>}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function PlanScreen({ currentTier, onSelect }) {
+  const [selected, setSelected] = useState(currentTier || "gratuit");
+  return (
+    <div style={{ padding:"16px 16px 0" }}>
+      <p style={{ color:"rgba(255,255,255,.18)",fontSize:8,letterSpacing:3,fontFamily:"'Orbitron',monospace",marginBottom:4 }}>PROTOCOLE</p>
+      <h2 style={{ color:"#fff",fontFamily:"'Orbitron',monospace",fontSize:16,letterSpacing:2,marginBottom:4 }}>CHOISIR TON PLAN</h2>
+      <p style={{ color:"rgba(255,255,255,.25)",fontSize:10,fontFamily:"'Share Tech Mono',monospace",marginBottom:18,lineHeight:1.6 }}>
+        Chaque plan débarre la même transformation. La différence : le niveau de personnalisation de l'IA.
+      </p>
+      <div style={{ display:"flex",flexDirection:"column",gap:10,marginBottom:20 }}>
+        {TIERS.map(tier => {
+          const isActive = selected === tier.id;
+          const isCurrent = currentTier === tier.id;
+          return (
+            <div key={tier.id} onClick={() => setSelected(tier.id)}
+              style={{ background:isActive?`rgba(${tier.rgb},.07)`:"rgba(255,255,255,.02)",
+                border:`1px solid ${isActive?tier.color+"44":"rgba(255,255,255,.06)"}`,
+                borderRadius:8,padding:"14px 16px",cursor:"pointer",transition:"all .2s",
+                boxShadow:isActive?`0 0 20px rgba(${tier.rgb},.08)`:""  }}>
+              <div style={{ display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:10 }}>
+                <div style={{ display:"flex",alignItems:"center",gap:8 }}>
+                  <span style={{ color:tier.color,fontSize:18,textShadow:`0 0 10px ${tier.color}` }}>{tier.icon}</span>
+                  <div>
+                    <p style={{ color:tier.color,fontFamily:"'Orbitron',monospace",fontSize:11,letterSpacing:2 }}>{tier.label}</p>
+                    {isCurrent && <p style={{ color:`${tier.color}88`,fontSize:8,fontFamily:"'Orbitron',monospace",letterSpacing:2 }}>PLAN ACTUEL</p>}
+                  </div>
+                </div>
+                <div style={{ textAlign:"right" }}>
+                  <p style={{ color:tier.id==="gratuit"?"#22c55e":tier.color,fontFamily:"'Orbitron',monospace",fontSize:13,fontWeight:700 }}>{tier.price}</p>
+                  {tier.id!=="gratuit" && <p style={{ color:"rgba(255,255,255,.2)",fontSize:8,fontFamily:"'Orbitron',monospace" }}>BIENTÔT</p>}
+                </div>
+              </div>
+              <div style={{ display:"flex",flexDirection:"column",gap:5 }}>
+                {tier.features.map((f,i) => (
+                  <div key={i} style={{ display:"flex",alignItems:"center",gap:7 }}>
+                    <div style={{ width:5,height:5,borderRadius:"50%",background:tier.locked.length===0||i===0?tier.color:`${tier.color}33`,flexShrink:0 }}/>
+                    <span style={{ color:tier.locked.length===0||i===0?"rgba(255,255,255,.45)":"rgba(255,255,255,.18)",fontSize:10,fontFamily:"'Share Tech Mono',monospace" }}>{f}</span>
+                    {tier.id!=="gratuit" && i>0 && <span style={{ marginLeft:"auto",color:`${tier.color}44`,fontSize:8,fontFamily:"'Orbitron',monospace" }}>🔒</span>}
+                  </div>
+                ))}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+      <button onClick={() => onSelect(selected)}
+        style={{ width:"100%",padding:"13px",background:"rgba(0,255,200,.07)",border:"1px solid rgba(0,255,200,.3)",
+          borderRadius:6,color:"#00ffcc",fontFamily:"'Orbitron',monospace",fontSize:10,letterSpacing:3,cursor:"pointer" }}>
+        CONTINUER AVEC {TIERS.find(t=>t.id===selected)?.label} →
+      </button>
+      <p style={{ textAlign:"center",marginTop:10,color:"rgba(255,255,255,.15)",fontSize:9,fontFamily:"'Share Tech Mono',monospace" }}>
+        Les plans payants arrivent bientôt. Pour l'instant tout est gratuit.
+      </p>
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════
+// PROGRAMME SCREEN — affiché dans l'onglet QUÊTES ou dédié
+// ═══════════════════════════════════════════════════════════
+function SetupScreen({ onDone, onKryos }) {
+  const [phase, setPhase] = useState(-1);
+  const [nom, setNom] = useState("");
+  const [valeurs, setValeurs] = useState([]);
+  const [facetteId, setFacetteId] = useState(null);
+  const [identite, setIdentite] = useState("");
+  const f = FACETTES.find(fc => fc.id === facetteId);
+  const tv = v => valeurs.includes(v) ? setValeurs(valeurs.filter(x => x !== v)) : valeurs.length < 5 && setValeurs([...valeurs, v]);
+  const preIds = facetteId ? (PRE_IDENTITES[facetteId] || []) : [];
+
+  const BackBtn = ({ to, label="← RETOUR" }) => (
+    <button onClick={() => setPhase(to)} style={{ background:"none", border:"none", color:"rgba(255,255,255,.25)", fontSize:9, fontFamily:"'Orbitron',monospace", letterSpacing:2, cursor:"pointer", marginBottom:18, display:"flex", alignItems:"center", gap:6, padding:0 }}>
+      {label}
+    </button>
+  );
+
+  const BG = { minHeight:"100vh", background:"#04040f", padding:"26px 18px 80px",
+    backgroundImage:`linear-gradient(rgba(0,255,200,.013) 1px,transparent 1px),linear-gradient(90deg,rgba(0,255,200,.013) 1px,transparent 1px)`,
+    backgroundSize:"44px 44px" };
+
+  // Phase -1 : Kryos intro
+  if (phase === -1) return (
+    <div style={{ ...BG, display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center" }}>
+      <div style={{ animation:"float 4s ease-in-out infinite", marginBottom:20 }}><GemFrog color="#00ffcc" size={130} mood="wise"/></div>
+      <p style={{ color:"#00ffcc", fontFamily:"'Orbitron',monospace", fontSize:13, letterSpacing:4, marginBottom:4, textShadow:"0 0 12px #00ffcc" }}>KRYOS</p>
+      <p style={{ color:"rgba(255,255,255,.2)", fontSize:9, fontFamily:"'Orbitron',monospace", letterSpacing:3, marginBottom:28 }}>GARDIEN DES GEMMES</p>
+      <p style={{ color:"rgba(255,255,255,.35)", fontSize:12, textAlign:"center", lineHeight:1.75, maxWidth:320, marginBottom:28, fontFamily:"'Share Tech Mono',monospace" }}>
+        Avant de commencer, je dois t'expliquer exactement pourquoi ce protocole fonctionne — et ce que tu t'apprêtes à faire.
+      </p>
+      <button onClick={() => { onKryos("welcome"); setTimeout(() => setPhase(0), 200); }}
+        style={{ padding:"13px 28px", background:"rgba(0,255,200,.07)", border:"1px solid #00ffcc44", borderRadius:4, cursor:"pointer", color:"#00ffcc", fontFamily:"'Orbitron',monospace", fontSize:11, letterSpacing:3, boxShadow:"0 0 20px rgba(0,255,200,.12)", marginBottom:14 }}>
+        ÉCOUTER KRYOS →
+      </button>
+      <button onClick={() => setPhase(0)}
+        style={{ background:"none", border:"none", color:"rgba(255,255,255,.2)", fontSize:9, fontFamily:"'Orbitron',monospace", letterSpacing:2, cursor:"pointer" }}>
+        passer →
+      </button>
+    </div>
+  );
+
+  return (
+    <div style={BG}>
+      <div style={{ maxWidth:420, margin:"0 auto" }}>
+
+        {/* Progress bar */}
+        <div style={{ display:"flex", gap:5, marginBottom:24 }}>
+          {[0,1,2].map(i => (
+            <div key={i} style={{ flex:1, height:2, background:i<=phase?"#00ffcc":"rgba(255,255,255,.07)", boxShadow:i===phase?"0 0 7px #00ffcc":"none", borderRadius:1, transition:"all .3s" }}/>
+          ))}
+        </div>
+
+        {/* ── PHASE 0 : NOYAU ── */}
+        {phase === 0 && (
+          <div style={{ animation:"fadeIn .4s ease" }}>
+            <p style={{ color:"#00ffcc44", fontSize:9, fontFamily:"'Orbitron',monospace", letterSpacing:3, marginBottom:5 }}>PHASE 01 / 03</p>
+            <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", marginBottom:18 }}>
+              <h2 style={{ color:"#00ffcc", fontFamily:"'Orbitron',monospace", fontSize:18, letterSpacing:2, textShadow:"0 0 12px #00ffcc44" }}>LE NOYAU</h2>
+              <button onClick={() => onKryos("noyau_why")} style={{ display:"flex", alignItems:"center", gap:5, background:"rgba(0,255,200,.05)", border:"1px solid rgba(0,255,200,.15)", borderRadius:20, padding:"4px 10px", cursor:"pointer" }}>
+                <GemFrog color="#00ffcc" size={18} mood="curious"/>
+                <span style={{ color:"#00ffcc88", fontSize:8, fontFamily:"'Orbitron',monospace" }}>POURQUOI ?</span>
+              </button>
+            </div>
+
+            {/* Nom */}
+            <div style={{ background:"rgba(0,255,200,.03)", border:"1px solid rgba(0,255,200,.1)", borderRadius:8, padding:"13px 14px", marginBottom:16 }}>
+              <p style={{ color:"rgba(255,255,255,.25)", fontSize:9, fontFamily:"'Orbitron',monospace", letterSpacing:3, marginBottom:9 }}>NOM DE GEMME</p>
+              <input value={nom} onChange={e => setNom(e.target.value)} placeholder="Ex: Saya, Nova, The One..."
+                style={{ width:"100%", padding:"10px 12px", background:"rgba(0,255,200,.05)", border:"1px solid rgba(0,255,200,.18)", borderRadius:4, color:"#00ffcc", fontSize:13, fontFamily:"'Orbitron',monospace", outline:"none" }}/>
+            </div>
+
+            {/* Valeurs par catégorie */}
+            <div style={{ background:"rgba(0,255,200,.03)", border:"1px solid rgba(0,255,200,.1)", borderRadius:8, padding:"13px 14px", marginBottom:20 }}>
+              <div style={{ display:"flex", justifyContent:"space-between", marginBottom:14 }}>
+                <p style={{ color:"rgba(255,255,255,.25)", fontSize:9, fontFamily:"'Orbitron',monospace", letterSpacing:3 }}>VALEURS FONDAMENTALES</p>
+                <p style={{ color:"#00ffcc88", fontSize:9, fontFamily:"'Orbitron',monospace" }}>{valeurs.length}/5</p>
+              </div>
+              <div style={{ display:"flex", flexDirection:"column", gap:14 }}>
+                {VALEURS_CATEGORIES.map(cat => (
+                  <div key={cat.cat}>
+                    <p style={{ color:`${cat.color}66`, fontSize:8, fontFamily:"'Orbitron',monospace", letterSpacing:3, marginBottom:8 }}>{cat.cat}</p>
+                    <div style={{ display:"flex", flexWrap:"wrap", gap:6 }}>
+                      {cat.vals.map(v => {
+                        const sel = valeurs.includes(v);
+                        return (
+                          <button key={v} onClick={() => tv(v)} style={{ padding:"5px 11px", borderRadius:3,
+                            background: sel ? `${cat.color}18` : "rgba(255,255,255,.03)",
+                            border:`1px solid ${sel ? cat.color+"55" : "rgba(255,255,255,.07)"}`,
+                            color: sel ? cat.color : "rgba(255,255,255,.3)",
+                            fontSize:10, cursor:"pointer", fontFamily:"'Orbitron',monospace", transition:"all .2s",
+                            boxShadow: sel ? `0 0 8px ${cat.color}22` : "none" }}>
+                            {v}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {/* Valeurs sélectionnées résumé */}
+              {valeurs.length > 0 && (
+                <div style={{ marginTop:14, padding:"10px 12px", background:"rgba(0,0,0,.3)", borderRadius:6, border:"1px solid rgba(0,255,200,.08)" }}>
+                  <p style={{ color:"rgba(255,255,255,.2)", fontSize:8, fontFamily:"'Orbitron',monospace", letterSpacing:2, marginBottom:6 }}>NOYAU SÉLECTIONNÉ</p>
+                  <div style={{ display:"flex", flexWrap:"wrap", gap:5 }}>
+                    {valeurs.map(v => (
+                      <span key={v} style={{ color:"#00ffcc", fontSize:10, fontFamily:"'Orbitron',monospace",
+                        background:"rgba(0,255,200,.08)", border:"1px solid rgba(0,255,200,.2)", borderRadius:3, padding:"3px 8px" }}>{v}</span>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <button onClick={() => nom && valeurs.length >= 1 && setPhase(1)}
+              disabled={!nom || valeurs.length < 1}
+              style={{ width:"100%", padding:"13px", borderRadius:4,
+                background: nom && valeurs.length >= 1 ? "rgba(0,255,200,.08)" : "rgba(255,255,255,.02)",
+                border:`1px solid ${nom && valeurs.length >= 1 ? "#00ffcc44" : "rgba(255,255,255,.05)"}`,
+                color: nom && valeurs.length >= 1 ? "#00ffcc" : "rgba(255,255,255,.18)",
+                fontFamily:"'Orbitron',monospace", fontSize:11, letterSpacing:3,
+                cursor: nom && valeurs.length >= 1 ? "pointer" : "not-allowed" }}>
+              ANCRER LE NOYAU →
+            </button>
+          </div>
+        )}
+
+        {/* ── PHASE 1 : FACETTE ── */}
+        {phase === 1 && (
+          <div style={{ animation:"fadeIn .4s ease" }}>
+            <BackBtn to={0}/>
+            <p style={{ color:"#00ffcc44", fontSize:9, fontFamily:"'Orbitron',monospace", letterSpacing:3, marginBottom:5 }}>PHASE 02 / 03</p>
+            <h2 style={{ color:"#00ffcc", fontFamily:"'Orbitron',monospace", fontSize:18, letterSpacing:2, marginBottom:6, textShadow:"0 0 12px #00ffcc44" }}>FACETTE ACTIVE</h2>
+            <p style={{ color:"rgba(255,255,255,.25)", fontSize:11, marginBottom:18, lineHeight:1.6, fontFamily:"'Share Tech Mono',monospace" }}>
+              Une seule facette. 90 jours. Laquelle est la plus stratégique pour toi maintenant ?
+            </p>
+            <div style={{ display:"flex", flexDirection:"column", gap:8, marginBottom:16 }}>
+              {FACETTES.map(fc => {
+                const isSelected = facetteId === fc.id;
+                return (
+                  <button key={fc.id} onClick={() => { setFacetteId(fc.id); setIdentite(""); }}
+                    style={{ display:"flex", alignItems:"center", gap:12, padding:"13px 14px",
+                      background: isSelected ? `${fc.color}0e` : "rgba(255,255,255,.02)",
+                      border:`1px solid ${isSelected ? fc.color+"3a" : "rgba(255,255,255,.05)"}`,
+                      borderRadius:6, cursor:"pointer", transition:"all .2s",
+                      boxShadow: isSelected ? `0 0 16px ${fc.color}12` : "none" }}>
+                    <span style={{ fontSize:20, color:fc.color, minWidth:26 }}>{fc.icon}</span>
+                    <div style={{ flex:1, textAlign:"left" }}>
+                      <div style={{ color:isSelected?fc.color:"rgba(255,255,255,.55)", fontFamily:"'Orbitron',monospace", fontSize:12, letterSpacing:1, marginBottom:3 }}>{fc.label}</div>
+                      <div style={{ color:"rgba(255,255,255,.2)", fontSize:10 }}>{fc.desc}</div>
+                    </div>
+                    <span style={{ color:`${fc.color}55`, fontSize:9, fontFamily:"'Orbitron',monospace" }}>{fc.stat}</span>
+                  </button>
+                );
+              })}
+            </div>
+            <button onClick={() => facetteId && setPhase(2)}
+              disabled={!facetteId}
+              style={{ width:"100%", padding:"13px", borderRadius:4,
+                background: facetteId ? `${f?.color}0e` : "rgba(255,255,255,.02)",
+                border:`1px solid ${facetteId ? f?.color+"3a" : "rgba(255,255,255,.05)"}`,
+                color: facetteId ? f?.color : "rgba(255,255,255,.18)",
+                fontFamily:"'Orbitron',monospace", fontSize:11, letterSpacing:3,
+                cursor: facetteId ? "pointer" : "not-allowed",
+                boxShadow: facetteId ? `0 0 14px ${f?.color}14` : "none" }}>
+              CHOISIR CETTE FACETTE →
+            </button>
+          </div>
+        )}
+
+        {/* ── PHASE 2 : IDENTITÉ ── */}
+        {phase === 2 && f && (
+          <div style={{ animation:"fadeIn .4s ease" }}>
+            <BackBtn to={1}/>
+            <p style={{ color:`${f.color}66`, fontSize:9, fontFamily:"'Orbitron',monospace", letterSpacing:3, marginBottom:5 }}>PHASE 03 / 03</p>
+            <h2 style={{ color:f.color, fontFamily:"'Orbitron',monospace", fontSize:18, letterSpacing:2, marginBottom:6, textShadow:`0 0 12px ${f.color}44` }}>
+              {f.icon} IDENTITÉ CIBLE
+            </h2>
+            <p style={{ color:"rgba(255,255,255,.25)", fontSize:11, marginBottom:18, lineHeight:1.6, fontFamily:"'Share Tech Mono',monospace" }}>
+              Choisis une pré-identité qui résonne, ou écris la tienne.
+            </p>
+
+            {/* Gem preview */}
+            <div style={{ textAlign:"center", margin:"0 0 20px", animation:"float 5s ease-in-out infinite" }}>
+              <Gem3D color={f.color} rank="E" size={140}/>
+            </div>
+
+            {/* Pré-identités */}
+            <div style={{ display:"flex", flexDirection:"column", gap:7, marginBottom:16 }}>
+              {preIds.map((pid, i) => {
+                const sel = identite === pid;
+                return (
+                  <button key={i} onClick={() => setIdentite(sel ? "" : pid)}
+                    style={{ padding:"12px 14px", textAlign:"left",
+                      background: sel ? `${f.color}12` : "rgba(255,255,255,.02)",
+                      border:`1px solid ${sel ? f.color+"44" : "rgba(255,255,255,.06)"}`,
+                      borderRadius:6, cursor:"pointer", transition:"all .2s",
+                      boxShadow: sel ? `0 0 14px ${f.color}14` : "none" }}>
+                    <div style={{ display:"flex", alignItems:"flex-start", gap:10 }}>
+                      <div style={{ width:16, height:16, borderRadius:"50%", flexShrink:0, marginTop:1,
+                        border:`1.5px solid ${sel ? f.color : "rgba(255,255,255,.15)"}`,
+                        background: sel ? f.color : "transparent",
+                        display:"flex", alignItems:"center", justifyContent:"center",
+                        boxShadow: sel ? `0 0 6px ${f.color}` : "none", transition:"all .2s" }}>
+                        {sel && <span style={{ color:"#000", fontSize:8 }}>✓</span>}
+                      </div>
+                      <p style={{ color: sel ? f.color : "rgba(255,255,255,.4)", fontSize:11, lineHeight:1.6, fontFamily:"'Share Tech Mono',monospace" }}>
+                        {pid}
+                      </p>
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* Custom input */}
+            <div style={{ background:`${f.color}06`, border:`1px solid ${f.color}1e`, borderRadius:8, padding:"12px 13px", marginBottom:18 }}>
+              <p style={{ color:`${f.color}66`, fontSize:8, fontFamily:"'Orbitron',monospace", letterSpacing:3, marginBottom:8 }}>OU ÉCRIS LA TIENNE</p>
+              <textarea
+                value={preIds.includes(identite) ? "" : identite}
+                onChange={e => setIdentite(e.target.value)}
+                placeholder={`Je suis quelqu'un qui...`}
+                rows={2}
+                style={{ width:"100%", padding:"9px 11px", background:`${f.color}06`, border:`1px solid ${f.color}22`,
+                  borderRadius:4, color:f.color, resize:"none",
+                  fontSize:12, fontFamily:"'Orbitron',monospace", outline:"none", lineHeight:1.6 }}/>
+            </div>
+
+            <button onClick={() => onDone({ nom, valeurs, facetteId, identite: identite || preIds[0] || `Je suis un·e ${f.label.toLowerCase()}` })}
+              style={{ width:"100%", padding:"14px", borderRadius:4,
+                background:`${f.color}12`, border:`1px solid ${f.color}44`,
+                color:f.color, fontFamily:"'Orbitron',monospace", fontSize:11, letterSpacing:3,
+                cursor:"pointer", boxShadow:`0 0 18px ${f.color}18`, transition:"all .3s" }}>
+              [ ACTIVER LA GEMME ]
+            </button>
+          </div>
+        )}
+
+      </div>
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════
+// MAIN APP
+// ═══════════════════════════════════════════════════════════
+const getKryosDaily = (facetteId) => {
+  const pool = KRYOS_DAILY[facetteId] || KRYOS_DAILY.athlete;
+  return pool[Math.floor(Math.random() * pool.length)];
+};
+
+
+
+
+// ═══════════════════════════════════════════════════════════
+// QUESTIONS KRYOS PAR FACETTE
+// ═══════════════════════════════════════════════════════════
+const QUESTIONS_PROGRAMME = {
+  athlete: [
+    { id:"niveau",     label:"Ton niveau actuel",         type:"select",  options:["Débutant — moins de 3 mois", "Intermédiaire — 3-12 mois", "Avancé — plus d'1 an", "Compétiteur"] },
+    { id:"objectif",   label:"Ton objectif principal",    type:"select",  options:["Perdre du poids / recomposition", "Prendre de la masse", "Performer / endurance", "Santé générale / énergie"] },
+    { id:"dispo",      label:"Jours disponibles/semaine", type:"select",  options:["2-3 jours", "4-5 jours", "6-7 jours", "Variable selon semaine"] },
+    { id:"contrainte", label:"Contrainte physique",       type:"select",  options:["Aucune", "Dos / lombaires", "Genoux", "Épaules", "Autre blessure"] },
+    { id:"equipement", label:"Équipement disponible",     type:"select",  options:["Salle de sport complète", "Home gym basique", "Aucun matériel — poids du corps", "Outdoor / running"] },
+    { id:"heure",      label:"Créneau préféré",           type:"select",  options:["Matin (avant 9h)", "Midi", "Après-midi", "Soir (après 18h)"] },
+    { id:"blocage",    label:"Ton plus grand blocage",    type:"text",    placeholder:"Ce qui t'a empêché de tenir jusqu'ici..." },
+  ],
+  createur: [
+    { id:"medium",     label:"Ton medium créatif principal", type:"select", options:["Écriture / contenu", "Vidéo / photo", "Design / art visuel", "Musique / son", "Code / produit", "Autre"] },
+    { id:"rythme",     label:"Temps création actuel/jour",   type:"select", options:["0-15 min", "15-30 min", "30-60 min", "Plus d'1h"] },
+    { id:"objectif",   label:"Objectif créatif",             type:"select", options:["Construire une audience", "Terminer un projet personnel", "Monétiser ma création", "S'exprimer / se libérer"] },
+    { id:"blocage",    label:"Ta résistance principale",     type:"select", options:["Peur du jugement", "Perfectionnisme", "Manque d'inspiration", "Manque de temps", "Procrastination"] },
+    { id:"dispo",      label:"Créneaux disponibles",         type:"select", options:["Matin uniquement", "Soir uniquement", "Week-end principalement", "Flexible"] },
+    { id:"inspiration",label:"Ce qui t'inspire le plus",     type:"text",   placeholder:"Artistes, œuvres, moments qui t'allument..." },
+    { id:"projet",     label:"Ton projet en ce moment",      type:"text",   placeholder:"Décris ce sur quoi tu travailles ou veux travailler..." },
+  ],
+  entrepreneur: [
+    { id:"stade",      label:"Stade de ton projet",       type:"select", options:["Idée — pas encore démarré", "Validation — premiers clients", "Croissance — revenus réguliers", "Scale — optimiser et déléguer"] },
+    { id:"secteur",    label:"Secteur / type de business", type:"select", options:["Service / conseil", "Produit digital", "E-commerce / physique", "SaaS / tech", "Autre"] },
+    { id:"blocage",    label:"Ton blocage principal",      type:"select", options:["Trouver des clients", "Passer à l'action", "Gestion du temps", "Mindset / peur d'échouer", "Compétences manquantes"] },
+    { id:"dispo",      label:"Heures dédiées/semaine",     type:"select", options:["Moins de 5h", "5-15h", "15-30h", "Plus de 30h — full time"] },
+    { id:"revenu",     label:"Objectif revenus 90 jours",  type:"select", options:["Premiers 500€", "1 000 - 3 000€/mois", "5 000 - 10 000€/mois", "Plus de 10 000€/mois"] },
+    { id:"force",      label:"Ta force principale",        type:"select", options:["Créer / construire", "Vendre / convaincre", "Analyser / optimiser", "Réseau / relations"] },
+    { id:"contexte",   label:"Ton contexte",               type:"text",   placeholder:"Salarié en parallèle ? Étudiant ? Full entrepreneur ? Décris ta situation..." },
+  ],
+  sage: [
+    { id:"pratique",   label:"Ta pratique actuelle",       type:"select", options:["Aucune — je commence", "Méditation occasionnelle", "Pratique régulière", "Pratique avancée"] },
+    { id:"objectif",   label:"Ce que tu cherches",         type:"select", options:["Calmer l'anxiété", "Clarté mentale / décisions", "Connexion à soi / sens", "Paix intérieure durable"] },
+    { id:"tradition",  label:"Approche qui te parle",      type:"select", options:["Stoïcisme / philosophie", "Bouddhisme / pleine conscience", "Psychologie moderne", "Spiritualité libre"] },
+    { id:"dispo",      label:"Temps dédié possible/jour",  type:"select", options:["5-10 min", "15-20 min", "30 min", "Plus d'1h"] },
+    { id:"obstacle",   label:"Ton obstacle principal",     type:"select", options:["Esprit agité — difficile de me poser", "Manque de régularité", "Scepticisme — j'y crois peu", "Environnement bruyant"] },
+    { id:"lecture",    label:"Type de lectures qui t'attirent", type:"select", options:["Philosophie / essais", "Psychologie / neurosciences", "Biographies", "Fiction inspirante"] },
+    { id:"question",   label:"La question que tu portes en ce moment", type:"text", placeholder:"Ce qui t'habite profondément, ce que tu cherches à comprendre..." },
+  ],
+  explorateur: [
+    { id:"style",      label:"Ton style d'exploration",    type:"select", options:["Voyages / géographique", "Expériences humaines / sociales", "Apprentissages / compétences", "Aventure physique / nature"] },
+    { id:"frein",      label:"Ce qui te retient",          type:"select", options:["Argent / budget", "Temps / obligations", "Peur / zone de confort", "Solitude / pas de compagnon"] },
+    { id:"frequence",  label:"Fréquence d'aventures souhaitée", type:"select", options:["Quelque chose de nouveau chaque jour", "1 expérience forte/semaine", "1 grande aventure/mois", "1 voyage/trimestre"] },
+    { id:"objectif",   label:"Ce que tu veux vivre ces 90j", type:"select", options:["Sortir radicalement de ma routine", "Voyager quelque part de nouveau", "Rencontrer des gens différents", "Développer une compétence inattendue"] },
+    { id:"dispo",      label:"Budget mensuel exploration",  type:"select", options:["Moins de 50€", "50-200€", "200-500€", "Pas de limite"] },
+    { id:"peur",       label:"Ton plus grand inconfort",    type:"select", options:["Parler à des inconnus", "Voyager seul", "Essayer quelque chose où je suis mauvais", "M'engager dans quelque chose d'incertain"] },
+    { id:"reve",       label:"L'expérience que tu rêves de vivre", type:"text", placeholder:"Quelque chose que tu n'as jamais osé faire mais qui t'attire..." },
+  ],
+  guerrier: [
+    { id:"combat",     label:"Ton combat principal en ce moment", type:"select", options:["Discipline / régularité", "Gestion des émotions", "Résistance à la douleur / effort", "Peur / courage", "Dépendances / mauvaises habitudes"] },
+    { id:"niveau",     label:"Ton niveau mental actuel",   type:"select", options:["Je cède souvent à la facilité", "Je résiste parfois mais pas toujours", "Je suis relativement discipliné", "Je cherche le niveau supérieur"] },
+    { id:"pratique",   label:"Ta pratique de renforcement", type:"select", options:["Aucune structure", "Sport régulier", "Méditation / stoïcisme", "Exposition volontaire à l'inconfort"] },
+    { id:"dispo",      label:"Intensité possible",         type:"select", options:["Je veux commencer doucement", "Prêt pour un rythme soutenu", "Je veux quelque chose d'extrême"] },
+    { id:"ennemi",     label:"Ton ennemi intérieur",       type:"select", options:["La procrastination", "Le confort / la mollesse", "La colère / réactivité", "Le doute de soi", "Les distractions"] },
+    { id:"victoire",   label:"Ta dernière grande victoire sur toi-même", type:"text", placeholder:"Quelque chose de difficile que tu as accompli et dont tu es fier..." },
+    { id:"objectif",   label:"Ce que tu veux forger en 90j", type:"text", placeholder:"Quelle version de toi veux-tu être à la fin du protocole ?" },
+  ],
+};
+
+const KRYOS_PROGRAMME_INTRO = {
+  athlete:      { title:"PROGRAMME ATHLÈTE", mood:"stern",   lines:["Avant de te donner un programme.", "J'ai besoin de savoir exactement où tu en es.", "Pas pour te juger. Pour ne pas te donner quelque chose d'inadapté.", "Réponds honnêtement. C'est pour toi."] },
+  createur:     { title:"PROGRAMME CRÉATEUR", mood:"curious", lines:["Un programme créatif sans contexte, c'est du bruit.", "Je veux comprendre ton univers avant de construire quelque chose.", "7 questions. Sois précis.", "Ce que tu mets ici, l'IA le lira pour personnaliser chaque détail."] },
+  entrepreneur: { title:"PROGRAMME ENTREPRENEUR", mood:"wise", lines:["Un entrepreneur sans programme adapté à son stade perd du temps.", "Je vais te poser des questions sur ta situation réelle.", "Pas sur tes rêves. Sur là où tu en es maintenant.", "C'est la seule façon de construire quelque chose d'utile."] },
+  sage:         { title:"PROGRAMME SAGE", mood:"wise",    lines:["La sagesse commence par la connaissance de soi.", "Avant de te donner un chemin, je veux comprendre où tu es.", "Ces questions sont une pratique en elles-mêmes.", "Réponds lentement. Observe ce qui monte."] },
+  explorateur:  { title:"PROGRAMME EXPLORATEUR", mood:"curious", lines:["L'exploration sans intention est du tourisme.", "Je veux comprendre ce que tu cherches vraiment.", "Pas l'aventure de surface. L'aventure qui compte.", "7 questions. Sois honnête sur tes freins."] },
+  guerrier:     { title:"PROGRAMME GUERRIER", mood:"stern", lines:["Un guerrier connaît ses ennemis.", "Y compris les intérieurs.", "Je vais te poser des questions directes.", "Réponds sans filtres. C'est là que le programme devient redoutable."] },
+};
+
+// ═══════════════════════════════════════════════════════════
+// API ANTHROPIC — génération programme IA
+// ═══════════════════════════════════════════════════════════
+const callClaude = async (prompt) => {
+  try {
+    const res = await fetch("/api/claude", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        model: "claude-sonnet-4-20250514",
+        max_tokens: 1000,
+        messages: [{ role: "user", content: prompt }],
+      }),
+    });
+    const data = await res.json();
+    return data.content?.[0]?.text || null;
+  } catch (e) {
+    return null;
+  }
+};
+
+const genererProgramme = async (facetteId, valeurs=[], identite="", tier="gratuit", answers={}) => {
+  const f = FACETTES.find(fc => fc.id === facetteId);
+  const template = PROGRAMME_TEMPLATE[facetteId] || PROGRAMME_TEMPLATE.athlete;
+  const reponsesText = answers && Object.keys(answers).length > 0
+    ? "\n\nRéponses du questionnaire:\n" + Object.entries(answers).map(([k,v]) => `- ${k}: ${v}`).join("\n")
+    : "";
+
+  const prompt = `Tu es un coach de transformation identitaire expert. Génère un programme 90 jours hyper-personnalisé.
+
+Facette travaillée: ${f?.label}
+Valeurs: ${valeurs.join(", ")}
+Identité cible: "${identite}"${reponsesText}
+
+Réponds UNIQUEMENT en JSON valide, sans markdown, sans texte avant ou après:
+{
+  "sport": ["item1 adapté au profil", "item2", "item3", "item4"],
+  "lectures": ["Titre — Auteur (pourquoi ce livre pour ce profil)", "Titre — Auteur (raison)", "Titre — Auteur (raison)"],
+  "habitudes": ["habitude1 adaptée", "habitude2", "habitude3", "habitude4"],
+  "planning": ["Lun: activité spécifique", "Mar: ...", "Mer: ...", "Jeu: ...", "Ven: ...", "Sam: ...", "Dim: ..."],
+  "generated": true
+}
+
+Personnalise chaque item selon les réponses au questionnaire. Sois concret et spécifique. Max 65 caractères par item.`;
+
+  const raw = await callClaude(prompt);
+  if (!raw) return null;
+  try {
+    const clean = raw.replace(/```json|```/g, "").trim();
+    return JSON.parse(clean);
+  } catch {
+    // Fallback to template
+    return { ...template, planning: template.emploi_du_temps, generated: false };
+  }
+};
+
+const genererRapportHebdo = async (state) => {
+  const f = FACETTES.find(fc => fc.id === state.facetteId);
+  const streak = getStreak(state.histoire || {});
+  const joursFaits = Object.keys(state.histoire || {}).length;
+  const rank = getRank(state.xp || 0);
+  const derniers7 = Object.entries(state.histoire || {}).slice(-7);
+  const moyVotes = derniers7.length > 0
+    ? Math.round(derniers7.reduce((a,[,j]) => a + Object.values(j.votes||{}).filter(Boolean).length, 0) / derniers7.length)
+    : 0;
+  
+  const prompt = `Tu es Kryos, coach de transformation identitaire. Génère un rapport hebdomadaire court et percutant.
+
+Données: Facette ${f?.label}, Rang ${rank.id}, Streak ${streak}j, Jour ${joursFaits}/90, Moyenne ${moyVotes} votes/jour cette semaine.
+
+Réponds UNIQUEMENT en JSON:
+{
+  "titre": "titre court percutant",
+  "analyse": "2-3 phrases d'analyse honnête basée sur les chiffres",
+  "point_fort": "ce qui s'est bien passé cette semaine",
+  "point_travail": "ce sur quoi travailler la semaine prochaine",
+  "objectif_semaine": "1 objectif concret et mesurable pour la semaine prochaine"
+}`;
+
+  const raw = await callClaude(prompt);
+  if (!raw) return null;
+  try {
+    return JSON.parse(raw.replace(/```json|```/g, "").trim());
+  } catch { return null; }
+};
+
+// ═══════════════════════════════════════════════════════════
+// TIERS & PROGRAMMES
+// ═══════════════════════════════════════════════════════════
+const TIERS = [
+  {
+    id: "gratuit",
+    label: "GEMME BRUTE",
+    price: "Gratuit",
+    color: "#4b5563",
+    rgb: "75,85,99",
+    icon: "◇",
+    features: [
+      "Programme IA généré selon ta facette",
+      "Votes quotidiens fixes",
+      "Kryos — dialogues de base",
+      "Suivi 90 jours",
+      "Journal Aurèle",
+    ],
+    locked: [],
+  },
+  {
+    id: "faconne",
+    label: "GEMME POLIE",
+    price: "9€/mois",
+    color: "#00ffcc",
+    rgb: "0,255,204",
+    icon: "◈",
+    features: [
+      "Tout le plan Gratuit",
+      "Programme IA mis à jour chaque semaine",
+      "Votes personnalisables",
+      "Boss hebdo adapté par l'IA",
+      "Kryos analyse tes stats",
+    ],
+    locked: ["programme_hebdo", "custom_votes", "boss_ai", "kryos_stats"],
+  },
+  {
+    id: "maitrise",
+    label: "GEMME ABSOLUE",
+    price: "29€/mois",
+    color: "#ffd700",
+    rgb: "255,215,0",
+    icon: "✦",
+    features: [
+      "Tout le plan Façonné",
+      "Coach IA — adapte tout en temps réel",
+      "Objectifs personnalisés + structure IA",
+      "Rapport hebdomadaire IA",
+      "Kryos coach — questions + adaptation",
+    ],
+    locked: ["coach_ai", "objectifs_custom", "rapport_hebdo", "kryos_coach"],
+  },
+];
+
+const PROGRAMME_TEMPLATE = {
+  athlete: {
+    sport: ["3x musculation/semaine", "2x cardio 30min", "1x mobilité/yoga"],
+    lectures: ["Atomic Habits — James Clear", "Can't Hurt Me — David Goggins", "The Champion's Mind — Jim Afremow"],
+    habitudes: ["Lever à 6h", "Pas d'écran 1h avant le lit", "Protéine à chaque repas"],
+    emploi_du_temps: ["Lun: Muscu AM + mobilité soir", "Mar: Cardio 30min", "Mer: Repos actif", "Jeu: Muscu AM", "Ven: Cardio + mobilité", "Sam: Muscu", "Dim: Récupération totale"],
+  },
+  createur: {
+    sport: ["2x marche créative 45min", "1x yoga flow", "Étirements quotidiens 10min"],
+    lectures: ["The War of Art — Steven Pressfield", "Big Magic — Elizabeth Gilbert", "Steal Like an Artist — Austin Kleon"],
+    habitudes: ["Création 30min avant les écrans", "Carnet d'idées toujours avec soi", "Consommer moins, créer plus"],
+    emploi_du_temps: ["Lun: Création AM + inspiration soir", "Mar: Publier quelque chose", "Mer: Lecture + carnet", "Jeu: Création AM", "Ven: Feedback + itérer", "Sam: Projet personnel", "Dim: Recharge créative"],
+  },
+  entrepreneur: {
+    sport: ["2x sport 45min", "Marche journalière 20min", "Sport = clarté mentale"],
+    lectures: ["Zero to One — Peter Thiel", "The Lean Startup — Eric Ries", "$100M Offers — Alex Hormozi"],
+    habitudes: ["MIT (Most Important Task) le matin", "Revue métriques quotidienne", "Pas de réseaux sociaux avant 10h"],
+    emploi_du_temps: ["Lun: Planning semaine + MIT", "Mar: Prospection/croissance", "Mer: Opérationnel", "Jeu: Apprentissage", "Ven: Revue semaine + métriques", "Sam: Projet stratégique", "Dim: Déconnexion totale"],
+  },
+  sage: {
+    sport: ["1x yoga 1h", "Marche méditative 30min/jour", "Respiration 5min matin"],
+    lectures: ["Méditations — Marc Aurèle", "The Power of Now — Eckhart Tolle", "Man's Search for Meaning — Viktor Frankl"],
+    habitudes: ["Méditation 20min matin", "Journaling 15min soir", "Silence intentionnel 30min/jour"],
+    emploi_du_temps: ["Lun: Méditation + intention semaine", "Mar: Lecture profonde", "Mer: Journaling approfondi", "Jeu: Temps en nature", "Ven: Réflexion semaine", "Sam: Pratique contemplative", "Dim: Silence et recharge"],
+  },
+  explorateur: {
+    sport: ["Sport en plein air 3x/semaine", "1 nouvelle activité/mois", "Randonnée mensuelle"],
+    lectures: ["Into the Wild — Jon Krakauer", "The Alchemist — Paulo Coelho", "Vagabonding — Rolf Potts"],
+    habitudes: ["1 nouvelle chose/semaine", "Documenter ses expériences", "Dire oui avant non"],
+    emploi_du_temps: ["Lun: Planifier l'aventure semaine", "Mar: Sortir de la routine", "Mer: Explorer localement", "Jeu: Nouvelle compétence", "Ven: Rencontre humaine intentionnelle", "Sam: Grande aventure", "Dim: Documenter + intégrer"],
+  },
+  guerrier: {
+    sport: ["4x entraînement intense", "1x défi physique extrême/semaine", "Douche froide quotidienne"],
+    lectures: ["Extreme Ownership — Jocko Willink", "The Obstacle is the Way — Ryan Holiday", "12 Rules for Life — Jordan Peterson"],
+    habitudes: ["1 chose difficile/jour intentionnellement", "Pas d'excuses", "Journaling guerre intérieure"],
+    emploi_du_temps: ["Lun: Défi mental AM", "Mar: Entraînement intense", "Mer: Confronter une peur", "Jeu: Entraînement + résistance", "Ven: Défi social", "Sam: Épreuve physique/mentale", "Dim: Bilan de guerre"],
+  },
+};
+
+const INIT={nom:null,valeurs:[],facetteId:null,identite:null,xp:0,totalVotes:0,histoire:{},facettesState:{},votesJour:{},customVotes:{},sommeilJour:false,energieJour:0,aureleJour:null,aureleAnswer:null,bossJour:false,lastDay:null,lastWeek:null,usedAureles:[],feedbacks:[],kryosDaily:null,kryosDailyDate:null,tier:"gratuit",programmeIA:null,programmeDate:null,rapportHebdo:null,objectifsCustom:[],questionnaireDone:false,questionnaireAnswers:{}};
+
+export default function App() {
+  const [screen,setScreen]=useState("intro");
+  const [tab,setTab]=useState("facette");
+  const [showDayClose,setShowDayClose]=useState(false);
+  const [showQuestionnaire,setShowQuestionnaire]=useState(false);
+  const [kryos,setKryos]=useState(null);
+  const [xpNotif,setXpNotif]=useState(null);
+  const [rankNotif,setRankNotif]=useState(null);
+  const prevRank=useRef(null);
+  const shownAchs=useRef(new Set());
+  const [state,setState]=useState(()=>{ const s=load(); return s.nom?{...INIT,...s}:INIT; });
+
+  // Daily + Weekly reset
+  useEffect(()=>{
+    const t=today();
+    const nowDate = new Date();
+    // Get Monday of current week as string
+    const weekStart = (() => {
+      const d = new Date(nowDate);
+      const day = d.getDay();
+      const diff = d.getDate() - day + (day===0?-6:1);
+      d.setDate(diff); return d.toISOString().split("T")[0];
+    })();
+
+    if(state.nom&&state.lastDay&&state.lastDay!==t){
+      setState(s=>{
+        // Check weekly reset (boss resets each Monday)
+        const bossJour = s.lastWeek === weekStart ? s.bossJour : false;
+        const ns={
+          ...s,
+          histoire:{...s.histoire,[s.lastDay]:{votes:s.votesJour,sommeil:s.sommeilJour,energie:s.energieJour,aurele:s.aureleJour,aureleAnswer:s.aureleAnswer,boss:s.bossJour}},
+          votesJour:{}, sommeilJour:false, energieJour:0,
+          aureleJour:null, aureleAnswer:null,
+          bossJour: s.lastWeek !== weekStart ? false : s.bossJour,
+          lastWeek: weekStart,
+          lastDay:t
+        };
+        persist(ns); return ns;
+      });
+    } else if(state.nom&&!state.lastDay){
+      setState(s=>{ const ns={...s,lastDay:t,lastWeek:weekStart}; persist(ns); return ns; });
+    }
+    // Weekly boss reset even without day change
+    if(state.nom && state.lastWeek && state.lastWeek !== weekStart) {
+      setState(s=>{ const ns={...s,bossJour:false,lastWeek:weekStart}; persist(ns); return ns; });
+    }
+  },[]);
+
+  // Rank up detection + auto-kryos
+  useEffect(()=>{
+    const r=getRank(state.xp||0);
+    if(prevRank.current&&prevRank.current!==r.id){
+      setRankNotif(r);
+      const key=`rank_${r.id}`.toLowerCase();
+      if(DIALOGUES[key]) setTimeout(()=>setKryos(key),3600);
+    }
+    prevRank.current=r.id;
+  },[state.xp]);
+
+  // Achievement auto-kryos
+  useEffect(()=>{
+    if(!state.nom) return;
+    const tv=state.totalVotes||0;
+    if(tv===1&&!shownAchs.current.has("first_vote")){ shownAchs.current.add("first_vote"); setTimeout(()=>setKryos("first_vote"),600); }
+    if(tv===50&&!shownAchs.current.has("votes_50")){ shownAchs.current.add("votes_50"); setTimeout(()=>setKryos("votes_50"),600); }
+    if(tv===100&&!shownAchs.current.has("votes_100")){ shownAchs.current.add("votes_100"); setTimeout(()=>setKryos("votes_100"),600); }
+  },[state.totalVotes]);
+
+  // Streak Kryos
+  useEffect(()=>{
+    if(!state.nom) return;
+    const streak=getStreak(state.histoire||{});
+    if(streak===3&&!shownAchs.current.has("streak_3")){ shownAchs.current.add("streak_3"); setTimeout(()=>setKryos("streak_3"),600); }
+    if(streak===7&&!shownAchs.current.has("streak_7")){ shownAchs.current.add("streak_7"); setTimeout(()=>setKryos("streak_7"),600); }
+  },[state.histoire]);
+
+  // Energie low auto-kryos
+  useEffect(()=>{
+    if(state.energieJour>0&&state.energieJour<=3&&!shownAchs.current.has(`e_${today()}`)){
+      shownAchs.current.add(`e_${today()}`); setTimeout(()=>setKryos("energie_low"),800);
+    }
+  },[state.energieJour]);
+
+  // Sommeil auto-kryos
+  useEffect(()=>{
+    if(state.sommeilJour&&!shownAchs.current.has(`som_${today()}`)){
+      shownAchs.current.add(`som_${today()}`); setTimeout(()=>setKryos("sommeil_logged"),800);
+    }
+  },[state.sommeilJour]);
+
+  // Boss auto-kryos
+  useEffect(()=>{
+    if(state.bossJour&&!shownAchs.current.has(`boss_${today()}`)){
+      shownAchs.current.add(`boss_${today()}`); setTimeout(()=>setKryos("boss_defeated"),600);
+    }
+  },[state.bossJour]);
+
+  // Aurele answer auto-kryos
+  useEffect(()=>{
+    if(state.aureleAnswer&&!shownAchs.current.has(`aur_${today()}`)){
+      shownAchs.current.add(`aur_${today()}`); setTimeout(()=>setKryos("aurelis_answered"),600);
+    }
+  },[state.aureleAnswer]);
+
+
+  // Programme IA — montre le questionnaire UNE SEULE FOIS (première visite onglet PROG)
+  const hasShownQuestionnaire = useRef(false);
+  useEffect(()=>{
+    if(!state.nom||!state.facetteId) return;
+    if(tab==="programme" && !state.questionnaireDone && !hasShownQuestionnaire.current){
+      hasShownQuestionnaire.current = true;
+      setShowQuestionnaire(true);
+    }
+  },[tab]);
+
+  // Kryos daily thought — load once per day
+  useEffect(()=>{
+    if(!state.nom||!state.facetteId) return;
+    const t=today();
+    if(state.kryosDailyDate!==t){
+      const thought=getKryosDaily(state.facetteId);
+      update({kryosDaily:thought,kryosDailyDate:t});
+    }
+  },[state.nom,state.facetteId]);
+
+  useEffect(()=>{ if(state.nom&&state.facetteId) setScreen("app"); },[]);
+
+  const update=patch=>setState(s=>{ const ns={...s,...patch}; persist(ns); return ns; });
+
+  const handleSetup=data=>{
+    const ns={...INIT,...data,lastDay:today(),facettesState:{[data.facetteId]:{xp:0}}};
+    persist(ns); setState(ns); setScreen("app");
+  };
+
+  const handleVote=vote=>{
+    setState(s=>{
+      const done=s.votesJour[vote.label]; const dx=done?-vote.xp:vote.xp;
+      if(!done) setXpNotif(vote.xp);
+      const fXP=Math.max(0,((s.facettesState||{})[s.facetteId]?.xp||0)+dx);
+      const ns={...s,xp:Math.max(0,(s.xp||0)+dx),totalVotes:Math.max(0,(s.totalVotes||0)+(done?-1:1)),votesJour:{...s.votesJour,[vote.label]:!done},facettesState:{...(s.facettesState||{}),[s.facetteId]:{xp:fXP}}};
+      persist(ns); return ns;
+    });
+  };
+  const handleSommeil=()=>setState(s=>{ const on=!s.sommeilJour,dx=on?10:-10; if(on)setXpNotif(10); const fXP=Math.max(0,((s.facettesState||{})[s.facetteId]?.xp||0)+dx); const ns={...s,sommeilJour:on,xp:Math.max(0,(s.xp||0)+dx),facettesState:{...(s.facettesState||{}),[s.facetteId]:{xp:fXP}}}; persist(ns); return ns; });
+  const handleBoss=()=>setState(s=>{ const on=!s.bossJour,dx=on?50:-50; if(on)setXpNotif(50); const fXP=Math.max(0,((s.facettesState||{})[s.facetteId]?.xp||0)+dx); const ns={...s,bossJour:on,xp:Math.max(0,(s.xp||0)+dx),facettesState:{...(s.facettesState||{}),[s.facetteId]:{xp:fXP}}}; persist(ns); return ns; });
+  const handleChangeFacette=newId=>setState(s=>{ const fState={...(s.facettesState||{})}; if(!fState[newId])fState[newId]={xp:0}; const ns={...s,facetteId:newId,identite:`Je suis un·e ${FACETTES.find(f=>f.id===newId)?.label.toLowerCase()}`,facettesState:fState}; persist(ns); setTimeout(()=>setKryos("facette_changed"),400); return ns; });
+
+
+  const handleGenererProgramme = async (answers={}) => {
+    const prog = await genererProgramme(state.facetteId, state.valeurs, state.identite, state.tier||"gratuit", answers);
+    if (prog) update({ programmeIA: prog, programmeDate: today(), questionnaireAnswers: answers, questionnaireDone: true });
+  };
+
+  const handleQuestionnaireSubmit = async (answers) => {
+    setShowQuestionnaire(false);
+    await handleGenererProgramme(answers);
+  };
+
+  const handleGenererRapport = async () => {
+    const rapport = await genererRapportHebdo(state);
+    if (rapport) update({ rapportHebdo: rapport });
+  };
+
+  const handleSetTier = (tierId) => {
+    update({ tier: tierId });
+    setShowPlan(false);
+  };
+
+  const handleFeedback=fb=>setState(s=>{ const ns={...s,feedbacks:[...(s.feedbacks||[]),fb]}; persist(ns); return ns; });
+  const rank=getRank(state.xp||0); const streak=getStreak(state.histoire||{});
+  const f=FACETTES.find(fc=>fc.id===state.facetteId);
+  const fcs=(state.facettesState||{})[state.facetteId]||{xp:0}; const fRank=getRank(fcs.xp||0);
+
+  // INTRO
+  if(screen==="intro") return (
+    <>
+      <style>{CSS}</style>
+      <div style={{ minHeight:"100vh",background:"#04040f",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",padding:24,backgroundImage:`linear-gradient(rgba(0,255,200,.013) 1px,transparent 1px),linear-gradient(90deg,rgba(0,255,200,.013) 1px,transparent 1px)`,backgroundSize:"44px 44px" }}>
+        <div style={{ animation:"float 5s ease-in-out infinite",marginBottom:32 }}><GemFrog color="#00ffcc" size={160} mood="wise"/></div>
+        <p style={{ color:"#00ffcc",fontFamily:"'Orbitron',monospace",fontSize:22,letterSpacing:5,textShadow:"0 0 20px #00ffcc",marginBottom:6 }}>GEM VITALE</p>
+        <p style={{ color:"rgba(255,255,255,.18)",fontSize:9,fontFamily:"'Orbitron',monospace",letterSpacing:4,marginBottom:36 }}>TRANSFORMATION IDENTITAIRE</p>
+        <button onClick={()=>state.nom?setScreen("app"):setScreen("setup")} style={{ padding:"14px 32px",background:"rgba(0,255,200,.07)",border:"1px solid #00ffcc44",borderRadius:4,cursor:"pointer",color:"#00ffcc",fontFamily:"'Orbitron',monospace",fontSize:11,letterSpacing:3,boxShadow:"0 0 22px rgba(0,255,200,.12)" }}>
+          {state.nom?"REPRENDRE":"[ COMMENCER ]"}
+        </button>
+      </div>
+    </>
+  );
+
+  if(screen==="setup") return (
+    <>
+      <style>{CSS}</style>
+      {kryos&&<KryosModal dialogueKey={kryos} color={f?.color||"#00ffcc"} onClose={()=>setKryos(null)}/>}
+      <SetupScreen onDone={handleSetup} onKryos={setKryos}/>
+    </>
+  );
+
+  const TABS=[{id:"facette",label:"FACETTE",icon:f?.icon||"◈"},{id:"votes",label:"VOTES",icon:"⚔"},{id:"programme",label:"PROG.",icon:"📋"},{id:"profil",label:"PROFIL",icon:"◎"},{id:"quetes",label:"QUÊTES",icon:"✦"},{id:"retour",label:"RETOUR",icon:"◇"}];
+
+  return (
+    <>
+      <style>{CSS}</style>
+      {kryos&&<KryosModal dialogueKey={kryos} color={f?.color||"#00ffcc"} onClose={()=>setKryos(null)}/>}
+      {xpNotif&&<XPNotif xp={xpNotif} onDone={()=>setXpNotif(null)}/>}
+      {rankNotif&&<RankNotif rank={rankNotif} onDone={()=>setRankNotif(null)}/> }
+      {showDayClose&&<DayCloseModal state={state} onClose={()=>setShowDayClose(false)} onKryos={setKryos}/>}
+
+      <div style={{ background:"#04040f",minHeight:"100vh",paddingBottom:86,backgroundImage:`linear-gradient(rgba(0,255,200,.012) 1px,transparent 1px),linear-gradient(90deg,rgba(0,255,200,.012) 1px,transparent 1px)`,backgroundSize:"44px 44px" }}>
+
+        {/* Header */}
+        <div style={{ padding:"12px 18px 10px",borderBottom:"1px solid rgba(0,255,200,.06)",display:"flex",justifyContent:"space-between",alignItems:"center",background:"rgba(4,4,15,.92)",backdropFilter:"blur(20px)",position:"sticky",top:0,zIndex:50 }}>
+          <span style={{ color:"#00ffcc2a",fontSize:9,fontFamily:"'Orbitron',monospace",letterSpacing:3 }}>GEM VITALE</span>
+          <div style={{ display:"flex",gap:11,alignItems:"center" }}>
+            {streak>0&&<span style={{ color:"#f59e0b",fontSize:9,fontFamily:"'Orbitron',monospace" }}>🔥{streak}</span>}
+            <span style={{ color:rank.color,fontSize:9,fontFamily:"'Orbitron',monospace",textShadow:`0 0 6px ${rank.color}` }}>{rank.id} — {rank.title}</span>
+          </div>
+        </div>
+
+        {tab==="facette"&&(
+          <div>
+            <div style={{ background:`linear-gradient(180deg,rgba(${f?.rgb||"0,255,204"},.055) 0%,transparent 100%)`,borderBottom:`1px solid ${f?.color||"#00ffcc"}15` }}>
+              <FacetteHUD f={f||FACETTES[0]} fRank={fRank} fXP={fcs.xp||0} streak={streak} identite={state.identite} joursFaits={Object.keys(state.histoire||{}).length} kryosDaily={state.kryosDaily}/>
+            </div>
+            <div style={{ padding:"13px 16px 0" }}>
+              <p style={{ color:"rgba(255,255,255,.15)",fontSize:8,fontFamily:"'Orbitron',monospace",letterSpacing:2,marginBottom:9 }}>
+                {new Date().toLocaleDateString("fr-FR",{weekday:"long",day:"numeric",month:"long"}).toUpperCase()}
+              </p>
+              <div style={{ display:"flex",gap:5,flexWrap:"wrap",marginBottom:11 }}>
+                {(VOTES_DATA[state.facetteId]||[]).map(v=>{ const done=!!(state.votesJour||{})[v.label]; return <div key={v.label} style={{ padding:"5px 8px",background:done?`${f?.color}10`:"rgba(255,255,255,.03)",border:`1px solid ${done?f?.color+"2a":"rgba(255,255,255,.04)"}`,borderRadius:3,fontSize:11,color:done?f?.color:"rgba(255,255,255,.18)",transition:"all .2s" }}>{v.icon} {done?"✓":"·"}</div>; })}
+                <div style={{ padding:"5px 8px",background:state.sommeilJour?"rgba(96,165,250,.09)":"rgba(255,255,255,.03)",border:`1px solid ${state.sommeilJour?"#60a5fa2a":"rgba(255,255,255,.04)"}`,borderRadius:3,fontSize:11,color:state.sommeilJour?"#60a5fa":"rgba(255,255,255,.18)" }}>🌙 {state.sommeilJour?"✓":"·"}</div>
+              </div>
+              <button onClick={()=>setTab("votes")} style={{ width:"100%",padding:"10px",background:`${f?.color}07`,border:`1px solid ${f?.color}1e`,borderRadius:5,color:f?.color,fontFamily:"'Orbitron',monospace",fontSize:9,letterSpacing:3,cursor:"pointer",transition:"all .2s" }}>VOIR LES VOTES DU JOUR →</button>
+            </div>
+          </div>
+        )}
+
+        {tab==="votes"&&<VotesScreen state={state} onVote={handleVote} onSommeil={handleSommeil} onEnergie={n=>update({energieJour:n})} onAurele={()=>{ const q=getNextAurele(state.usedAureles||[]); update({aureleJour:q,usedAureles:[...(state.usedAureles||[]),q]}); }} onAureleAnswer={t=>update({aureleAnswer:t})} onBoss={handleBoss} onDayClose={()=>setShowDayClose(true)}/>}
+        {tab==="profil"&&<ProfileScreen state={state} onKryos={setKryos}/>}
+        {tab==="quetes"&&<QuestsScreen state={state} onChangeFacette={handleChangeFacette} onKryos={setKryos}/>}
+        {tab==="retour"&&<FeedbackScreen state={state} onSubmit={handleFeedback}/>}
+        {tab==="programme"&&<ProgrammeScreen state={state} onKryos={setKryos}/>}
+        {showQuestionnaire&&<KryosQuestionnaire facetteId={state.facetteId} onDone={handleQuestionnaireSubmit} onSkip={()=>{setShowQuestionnaire(false);handleGenererProgramme({});}} />}
+
+        {/* Bottom nav */}
+        <div style={{ position:"fixed",bottom:0,left:0,right:0,background:"rgba(4,4,15,.97)",borderTop:"1px solid rgba(0,255,200,.06)",display:"flex",justifyContent:"space-around",padding:"9px 0 20px",backdropFilter:"blur(24px)",zIndex:100 }}>
+          {TABS.map(t=>{ const active=tab===t.id; const ac=active?(f?.color||"#00ffcc"):"rgba(255,255,255,.18)"; return (
+            <button key={t.id} onClick={()=>setTab(t.id)} style={{ display:"flex",flexDirection:"column",alignItems:"center",gap:3,background:"none",border:"none",cursor:"pointer",padding:"4px 18px" }}>
+              <span style={{ fontSize:14,color:ac,textShadow:active?`0 0 12px ${ac}`:"none",transition:"all .2s" }}>{t.icon}</span>
+              <span style={{ fontSize:7,color:ac,fontFamily:"'Orbitron',monospace",letterSpacing:2,transition:"all .2s" }}>{t.label}</span>
+              {active&&<div style={{ width:16,height:1,background:ac,boxShadow:`0 0 4px ${ac}`,borderRadius:1 }}/>}
+            </button>
+          ); })}
+        </div>
+      </div>
+    </>
+  );
+}
