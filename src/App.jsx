@@ -810,7 +810,288 @@ function ProfileScreen({ state, onKryos }) {
 // ═══════════════════════════════════════════════════════════
 // VOTES SCREEN
 // ═══════════════════════════════════════════════════════════
-function VotesScreen({ state, onVote, onSommeil, onEnergie, onAurele, onAureleAnswer, onBoss, onDayClose }) {
+
+// ═══════════════════════════════════════════════════════════
+// PROGRAMME DU JOUR — sous-onglet VOTES
+// ═══════════════════════════════════════════════════════════
+function ProgrammeJour({ state, onCheck }) {
+  const { programmeIA, facetteId, progJour={}, cycleStart } = state;
+  const f = FACETTES.find(fc => fc.id === facetteId);
+  const template = PROGRAMME_TEMPLATE[facetteId] || PROGRAMME_TEMPLATE.athlete;
+  const programme = programmeIA || { sport: template.sport, habitudes: template.habitudes, planning: template.emploi_du_temps };
+
+  const cycleDay = getCycleDay(cycleStart);
+  const todayKey = today();
+  const todayChecks = progJour[todayKey] || {};
+
+  // Get today's planning entry
+  const jours = ["Dim","Lun","Mar","Mer","Jeu","Ven","Sam"];
+  const jourIdx = new Date().getDay();
+  const jourLabel = jours[jourIdx];
+  const planningToday = (programme.planning||[]).find(p => p.startsWith(jourLabel+":") || p.toLowerCase().includes(jours[jourIdx].toLowerCase()));
+
+  // Build checklist: sport items + habitudes
+  const items = [
+    ...(programme.sport||[]).map((s,i) => ({ id:`sport_${i}`, label:s, cat:"SPORT", icon:"⚡" })),
+    ...(programme.habitudes||[]).map((h,i) => ({ id:`hab_${i}`, label:h, cat:"HABIT", icon:"🔥" })),
+  ];
+
+  const doneCount = items.filter(it => todayChecks[it.id]).length;
+  const pct = items.length > 0 ? Math.round(doneCount / items.length * 100) : 0;
+
+  const handleCheck = (id) => {
+    const newChecks = { ...todayChecks, [id]: !todayChecks[id] };
+    const newPct = Math.round(Object.values(newChecks).filter(Boolean).length / items.length * 100);
+    onCheck(todayKey, newChecks, newPct);
+  };
+
+  return (
+    <div>
+      {/* Cycle progress */}
+      <div style={{ background:"rgba(255,255,255,.02)",border:"1px solid rgba(255,255,255,.05)",borderRadius:8,padding:"10px 13px",marginBottom:12 }}>
+        <div style={{ display:"flex",justifyContent:"space-between",marginBottom:6 }}>
+          <span style={{ color:"rgba(255,255,255,.2)",fontSize:8,fontFamily:"'Orbitron',monospace",letterSpacing:2 }}>CYCLE {state.cycleNum||1} — JOUR {cycleDay}/{CYCLE_DAYS}</span>
+          <span style={{ color:f?.color,fontSize:8,fontFamily:"'Orbitron',monospace" }}>{pct}% aujourd'hui</span>
+        </div>
+        <div style={{ height:3,background:"rgba(255,255,255,.05)",borderRadius:2 }}>
+          <div style={{ height:"100%",width:`${cycleDay/CYCLE_DAYS*100}%`,background:`linear-gradient(90deg,${f?.color}77,${f?.color})`,borderRadius:2,transition:"width .5s" }}/>
+        </div>
+        {planningToday && (
+          <p style={{ color:"rgba(255,255,255,.25)",fontSize:9,fontFamily:"'Share Tech Mono',monospace",marginTop:6,lineHeight:1.5 }}>
+            📅 {planningToday}
+          </p>
+        )}
+      </div>
+
+      {/* Today completion */}
+      <div style={{ display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8 }}>
+        <span style={{ color:"rgba(255,255,255,.2)",fontSize:8,fontFamily:"'Orbitron',monospace",letterSpacing:2 }}>SÉANCES DU JOUR</span>
+        <span style={{ color:pct===100?"#00ff64":f?.color,fontSize:10,fontFamily:"'Orbitron',monospace",fontWeight:700 }}>
+          {doneCount}/{items.length} {pct===100?"✓":""}
+        </span>
+      </div>
+
+      {/* Checklist */}
+      <div style={{ display:"flex",flexDirection:"column",gap:6,marginBottom:14 }}>
+        {items.map(item => {
+          const done = todayChecks[item.id];
+          return (
+            <button key={item.id} onClick={() => handleCheck(item.id)}
+              style={{ display:"flex",alignItems:"center",gap:10,padding:"10px 13px",
+                background:done?`${f?.color}0e`:"rgba(255,255,255,.02)",
+                border:`1px solid ${done?f?.color+"33":"rgba(255,255,255,.06)"}`,
+                borderRadius:6,cursor:"pointer",transition:"all .15s",textAlign:"left" }}>
+              <div style={{ width:18,height:18,borderRadius:4,border:`1.5px solid ${done?f?.color:"rgba(255,255,255,.15)"}`,
+                background:done?`${f?.color}22`:"transparent",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0 }}>
+                {done && <span style={{ color:f?.color,fontSize:11,fontWeight:900 }}>✓</span>}
+              </div>
+              <div style={{ flex:1 }}>
+                <p style={{ color:done?"rgba(255,255,255,.6)":"rgba(255,255,255,.35)",fontSize:10,fontFamily:"'Share Tech Mono',monospace",
+                  textDecoration:done?"line-through":"none",transition:"all .15s",lineHeight:1.4 }}>{item.label}</p>
+                <span style={{ color:`${f?.color}55`,fontSize:7,fontFamily:"'Orbitron',monospace",letterSpacing:1 }}>{item.cat}</span>
+              </div>
+            </button>
+          );
+        })}
+      </div>
+
+      {pct===100 && (
+        <div style={{ textAlign:"center",padding:"10px",background:"rgba(0,255,100,.05)",border:"1px solid rgba(0,255,100,.15)",borderRadius:6,animation:"fadeIn .4s ease" }}>
+          <p style={{ color:"#00ff64",fontSize:9,fontFamily:"'Orbitron',monospace",letterSpacing:3 }}>✦ PROGRAMME COMPLÉTÉ AUJOURD'HUI</p>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════
+// BILAN CYCLE — écran fin de cycle
+// ═══════════════════════════════════════════════════════════
+function BilanCycleScreen({ state, bilan, onNextCycle, onClose }) {
+  const f = FACETTES.find(fc => fc.id === state.facetteId);
+  const rank = getRank(state.xp||0);
+  const joursFaits = Object.keys(state.histoire||{}).length;
+  const streak = getStreak(state.histoire||{});
+  const tier = state.tier||"gratuit";
+  const [phase, setPhase] = useState("cinematique"); // cinematique | stats | bilan | cta
+  const [score, setScore] = useState(0);
+  const [showScore, setShowScore] = useState(0);
+
+  // Animate score
+  useEffect(() => {
+    if (phase !== "stats") return;
+    const target = bilan?.score || Math.round((joursFaits/CYCLE_DAYS*40) + (streak/CYCLE_DAYS*30));
+    let current = 0;
+    const step = target / 60;
+    const t = setInterval(() => {
+      current = Math.min(current + step, target);
+      setShowScore(Math.round(current));
+      if (current >= target) clearInterval(t);
+    }, 24);
+    return () => clearInterval(t);
+  }, [phase]);
+
+  // Entries for charts
+  const entries = Object.entries(state.histoire||{}).slice(-CYCLE_DAYS);
+  const progEntries = Object.values(state.histoire||{});
+  const avgCompletion = progEntries.filter(j=>j.prog).length > 0
+    ? Math.round(progEntries.filter(j=>j.prog).reduce((a,j)=>a+(j.prog?.pct||0),0)/progEntries.filter(j=>j.prog).length)
+    : 0;
+
+  const color = f?.color || "#00ffcc";
+  const rgb = f?.rgb || "0,255,204";
+
+  // ── CINÉMATIQUE ──
+  if (phase === "cinematique") return (
+    <div style={{ position:"fixed",inset:0,zIndex:2500,background:"#000",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",animation:"fadeInFast .5s ease" }}>
+      <div style={{ textAlign:"center" }}>
+        <p style={{ color:`rgba(${rgb},.3)`,fontSize:9,fontFamily:"'Orbitron',monospace",letterSpacing:6,marginBottom:20,animation:"pulse 2s infinite" }}>
+          CYCLE {state.cycleNum||1} — TERMINÉ
+        </p>
+        <div style={{ fontSize:96,marginBottom:16,animation:"float 3s ease-in-out infinite",
+          filter:`drop-shadow(0 0 40px ${color}) drop-shadow(0 0 80px ${color}44)` }}>
+          {f?.icon}
+        </div>
+        <div style={{ color:rank.color,fontSize:64,fontFamily:"'Orbitron',monospace",fontWeight:900,
+          textShadow:`0 0 40px ${rank.color},0 0 80px ${rank.color}44`,animation:"rankUp .6s ease .3s both" }}>
+          {rank.id}
+        </div>
+        <p style={{ color:"rgba(255,255,255,.3)",fontSize:13,fontFamily:"'Orbitron',monospace",letterSpacing:3,marginTop:8 }}>
+          {rank.title.toUpperCase()}
+        </p>
+        <p style={{ color:`rgba(${rgb},.4)`,fontSize:11,fontFamily:"'Share Tech Mono',monospace",marginTop:20,fontStyle:"italic" }}>
+          "{bilan?.verdict || "Le cycle est tracé dans la pierre."}"
+        </p>
+      </div>
+      <button onClick={()=>setPhase("stats")}
+        style={{ position:"absolute",bottom:50,left:"50%",transform:"translateX(-50%)",
+          padding:"12px 32px",background:`rgba(${rgb},.08)`,border:`1px solid rgba(${rgb},.3)`,
+          borderRadius:4,color,fontFamily:"'Orbitron',monospace",fontSize:10,letterSpacing:3,cursor:"pointer",animation:"pulse 2s infinite" }}>
+        VOIR LE BILAN →
+      </button>
+    </div>
+  );
+
+  // ── STATS ──
+  if (phase === "stats") return (
+    <div style={{ position:"fixed",inset:0,zIndex:2500,background:"rgba(2,2,12,.98)",overflowY:"auto",animation:"fadeInFast .3s ease" }}>
+      <div style={{ maxWidth:520,margin:"0 auto",padding:"28px 18px 80px" }}>
+        <p style={{ color:`rgba(${rgb},.3)`,fontSize:8,letterSpacing:4,fontFamily:"'Orbitron',monospace",marginBottom:6 }}>
+          CYCLE {state.cycleNum||1} · {CYCLE_DAYS} JOURS
+        </p>
+        <h2 style={{ color,fontFamily:"'Orbitron',monospace",fontSize:18,marginBottom:20 }}>
+          {bilan?.titre || "BILAN DE CYCLE"}
+        </h2>
+
+        {/* Score global */}
+        <div style={{ textAlign:"center",marginBottom:24,padding:"20px",background:`rgba(${rgb},.04)`,border:`1px solid rgba(${rgb},.12)`,borderRadius:10 }}>
+          <p style={{ color:"rgba(255,255,255,.2)",fontSize:8,fontFamily:"'Orbitron',monospace",letterSpacing:3,marginBottom:8 }}>SCORE CYCLE</p>
+          <div style={{ color,fontSize:68,fontFamily:"'Orbitron',monospace",fontWeight:900,
+            textShadow:`0 0 30px ${color}`,animation:"xpCount .5s ease" }}>{showScore}</div>
+          <div style={{ height:4,background:"rgba(255,255,255,.05)",borderRadius:2,marginTop:12 }}>
+            <div style={{ height:"100%",width:`${Math.min(showScore,100)}%`,background:`linear-gradient(90deg,${color}77,${color})`,borderRadius:2,transition:"width 1.5s ease" }}/>
+          </div>
+        </div>
+
+        {/* Stats grid */}
+        <div style={{ display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:20 }}>
+          {[
+            { label:"JOURS ACTIFS", val:`${joursFaits}/${CYCLE_DAYS}`, color:"#22c55e" },
+            { label:"STREAK MAX", val:`${streak}j`, color:"#f59e0b" },
+            { label:"XP GAGNÉ", val:state.xp||0, color },
+            { label:"PROGRAMME", val:`${avgCompletion}%`, color:"#a78bfa" },
+          ].map(({label,val,color:c})=>(
+            <div key={label} style={{ background:"rgba(255,255,255,.03)",border:"1px solid rgba(255,255,255,.06)",borderRadius:8,padding:"12px",textAlign:"center" }}>
+              <div style={{ color:c,fontSize:22,fontFamily:"'Orbitron',monospace",fontWeight:700 }}>{val}</div>
+              <div style={{ color:"rgba(255,255,255,.2)",fontSize:7,fontFamily:"'Orbitron',monospace",letterSpacing:1,marginTop:3 }}>{label}</div>
+            </div>
+          ))}
+        </div>
+
+        {/* Mini bar chart — activité 15j */}
+        <div style={{ marginBottom:20 }}>
+          <p style={{ color:"rgba(255,255,255,.18)",fontSize:8,fontFamily:"'Orbitron',monospace",letterSpacing:2,marginBottom:8 }}>ACTIVITÉ — 15 DERNIERS JOURS</p>
+          <div style={{ display:"flex",gap:3,alignItems:"flex-end",height:50 }}>
+            {Array.from({length:CYCLE_DAYS},(_,i)=>{
+              const d = new Date(); d.setDate(d.getDate()-(CYCLE_DAYS-1-i));
+              const key = d.toISOString().split("T")[0];
+              const entry = state.histoire?.[key];
+              const votes = entry ? Object.values(entry.votes||{}).filter(Boolean).length : 0;
+              const h = entry ? Math.max(8, votes/5*100) : 4;
+              return (
+                <div key={i} style={{ flex:1,height:`${h}%`,background:entry?color:`rgba(${rgb},.1)`,borderRadius:2,transition:"height .5s ease",
+                  boxShadow:entry?`0 0 4px ${color}44`:""}}/>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Kryos analyse */}
+        {bilan?.analyse && (
+          <div style={{ background:`rgba(${rgb},.04)`,border:`1px solid rgba(${rgb},.12)`,borderRadius:8,padding:"14px 16px",marginBottom:14 }}>
+            <div style={{ display:"flex",gap:8,alignItems:"flex-start",marginBottom:10 }}>
+              <GemFrog color={color} size={28} mood="wise"/>
+              <p style={{ color:"rgba(255,255,255,.25)",fontSize:8,fontFamily:"'Orbitron',monospace",letterSpacing:2 }}>ANALYSE KRYOS</p>
+            </div>
+            <p style={{ color:"rgba(255,255,255,.55)",fontSize:11,fontFamily:"'Share Tech Mono',monospace",lineHeight:1.7,marginBottom:10 }}>{bilan.analyse}</p>
+            <div style={{ display:"flex",flexDirection:"column",gap:8 }}>
+              <div style={{ padding:"8px 10px",background:"rgba(0,255,100,.04)",border:"1px solid rgba(0,255,100,.12)",borderRadius:5 }}>
+                <p style={{ color:"#00ff6488",fontSize:7,fontFamily:"'Orbitron',monospace",letterSpacing:2,marginBottom:3 }}>VICTOIRE DU CYCLE</p>
+                <p style={{ color:"rgba(255,255,255,.45)",fontSize:10,fontFamily:"'Share Tech Mono',monospace" }}>{bilan.victoire}</p>
+              </div>
+              <div style={{ padding:"8px 10px",background:"rgba(239,68,68,.04)",border:"1px solid rgba(239,68,68,.12)",borderRadius:5 }}>
+                <p style={{ color:"#ef444488",fontSize:7,fontFamily:"'Orbitron',monospace",letterSpacing:2,marginBottom:3 }}>CHANTIER CYCLE 2</p>
+                <p style={{ color:"rgba(255,255,255,.45)",fontSize:10,fontFamily:"'Share Tech Mono',monospace" }}>{bilan.chantier}</p>
+              </div>
+            </div>
+            {bilan.message_kryos && (
+              <p style={{ color:`rgba(${rgb},.45)`,fontSize:10,fontFamily:"'Share Tech Mono',monospace",fontStyle:"italic",marginTop:10,borderTop:`1px solid rgba(${rgb},.08)`,paddingTop:10 }}>
+                "{bilan.message_kryos}"
+              </p>
+            )}
+          </div>
+        )}
+
+        {/* CTA */}
+        <div style={{ marginTop:20 }}>
+          <p style={{ color:"rgba(255,255,255,.18)",fontSize:9,fontFamily:"'Orbitron',monospace",letterSpacing:3,textAlign:"center",marginBottom:12 }}>
+            CYCLE {(state.cycleNum||1)+1}
+          </p>
+          {tier==="gratuit" ? (
+            <div>
+              <div style={{ padding:"14px",background:"rgba(255,215,0,.04)",border:"1px solid rgba(255,215,0,.15)",borderRadius:8,marginBottom:10,textAlign:"center" }}>
+                <span style={{ fontSize:20,display:"block",marginBottom:6 }}>🔒</span>
+                <p style={{ color:"#ffd70077",fontSize:9,fontFamily:"'Orbitron',monospace",letterSpacing:2,marginBottom:6 }}>CYCLE 2 — RÉSERVÉ AUX MEMBRES</p>
+                <p style={{ color:"rgba(255,255,255,.25)",fontSize:10,fontFamily:"'Share Tech Mono',monospace",lineHeight:1.6 }}>
+                  Programme adapté à ta progression. Kryos analyse ton cycle 1 et repose les bonnes questions.
+                </p>
+              </div>
+              <a href="mailto:kouchamehdi1@gmail.com?subject=Gem Vitale — Plan Façonné&body=Bonjour, je viens de terminer mon Cycle 1 et je souhaite passer au plan Façonné pour continuer."
+                style={{ display:"block",padding:"13px",background:`rgba(${rgb},.07)`,border:`1px solid rgba(${rgb},.25)`,
+                  borderRadius:6,color,fontFamily:"'Orbitron',monospace",fontSize:10,letterSpacing:3,textDecoration:"none",textAlign:"center" }}>
+                ✦ PASSER AU PLAN FAÇONNÉ →
+              </a>
+            </div>
+          ) : (
+            <button onClick={onNextCycle}
+              style={{ width:"100%",padding:"14px",background:`rgba(${rgb},.08)`,border:`1px solid rgba(${rgb},.3)`,
+                borderRadius:6,color,fontFamily:"'Orbitron',monospace",fontSize:10,letterSpacing:3,cursor:"pointer" }}>
+              ✦ DÉMARRER LE CYCLE {(state.cycleNum||1)+1} →
+            </button>
+          )}
+          <button onClick={onClose} style={{ width:"100%",marginTop:8,padding:"10px",background:"none",border:"none",
+            color:"rgba(255,255,255,.2)",fontFamily:"'Orbitron',monospace",fontSize:8,cursor:"pointer",letterSpacing:2 }}>
+            FERMER
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+
+  return null;
+}
+
+function VotesScreen({ state, onVote, onSommeil, onEnergie, onAurele, onAureleAnswer, onBoss, onDayClose, onProgCheck }) {
   const { facetteId,xp,votesJour={},sommeilJour,energieJour,aureleJour,aureleAnswer,bossJour } = state;
   const f=FACETTES.find(fc=>fc.id===facetteId);
   const vData=VOTES_DATA[facetteId]||[];
@@ -819,8 +1100,29 @@ function VotesScreen({ state, onVote, onSommeil, onEnergie, onAurele, onAureleAn
   const boss=BOSS_LIST[new Date().getDate()%BOSS_LIST.length];
   const [showAns,setShowAns]=useState(false);
   const [ansText,setAnsText]=useState(aureleAnswer||"");
+  const [votesTab,setVotesTab]=useState("aujourd_hui");
+  const hasProgramme = !!(state.programmeIA || PROGRAMME_TEMPLATE[facetteId]);
   return (
     <div style={{ padding:"12px 16px 0" }}>
+      {/* Sub-tabs */}
+      {hasProgramme && (
+        <div style={{ display:"flex",gap:5,marginBottom:13 }}>
+          {[{id:"aujourd_hui",label:"AUJOURD'HUI",icon:"⚔"},{id:"programme",label:"PROGRAMME DU JOUR",icon:"📋"}].map(t=>(
+            <button key={t.id} onClick={()=>setVotesTab(t.id)}
+              style={{ flex:1,padding:"7px",borderRadius:4,cursor:"pointer",transition:"all .15s",
+                background:votesTab===t.id?`${f?.color}14`:"rgba(255,255,255,.02)",
+                border:`1px solid ${votesTab===t.id?f?.color+"33":"rgba(255,255,255,.05)"}`,
+                color:votesTab===t.id?f?.color:"rgba(255,255,255,.2)",
+                fontSize:8,fontFamily:"'Orbitron',monospace",letterSpacing:1 }}>
+              {t.icon} {t.label}
+            </button>
+          ))}
+        </div>
+      )}
+      {votesTab==="programme" && hasProgramme && (
+        <ProgrammeJour state={state} onCheck={onProgCheck}/>
+      )}
+      {votesTab==="aujourd_hui" && <div>
       <div style={{ display:"flex",justifyContent:"space-between",alignItems:"center",background:"rgba(0,255,100,.05)",border:"1px solid rgba(0,255,100,.1)",borderRadius:6,padding:"9px 14px",marginBottom:13 }}>
         <span style={{ color:"rgba(255,255,255,.28)",fontSize:9,fontFamily:"'Orbitron',monospace",letterSpacing:2 }}>XP AUJOURD'HUI</span>
         <span style={{ color:"#00ff64",fontSize:17,fontFamily:"'Orbitron',monospace",fontWeight:700,textShadow:"0 0 12px #00ff6477" }}>+{xpToday}</span>
@@ -888,6 +1190,7 @@ function VotesScreen({ state, onVote, onSommeil, onEnergie, onAurele, onAureleAn
           })}
         </div>
       </div>
+      </div>}
       <div style={{padding:"0 16px 16px"}}>
         <button onClick={onDayClose} style={{width:"100%",marginTop:14,padding:"13px",background:"rgba(167,139,250,.08)",border:"1px solid rgba(167,139,250,.3)",borderRadius:6,color:"#a78bfa",fontFamily:"'Orbitron',monospace",fontSize:10,letterSpacing:3,cursor:"pointer",transition:"all .2s"}}>✦ SCELLER LA JOURNÉE</button>
       </div>
@@ -1308,10 +1611,11 @@ function ProgrammeScreen({ state, onKryos }) {
   const [activeTab, setActiveTab] = useState("sport");
 
   const tabs = [
-    { id:"sport",     label:"SPORT",  icon:"⚡" },
-    { id:"lectures",  label:"LIVRES", icon:"📖" },
-    { id:"habitudes", label:"HABITS", icon:"🔥" },
-    { id:"planning",  label:"SEMAINE",icon:"📅" },
+    { id:"sport",           label:"SPORT",    icon:"⚡" },
+    { id:"lectures",        label:"LIVRES",   icon:"📖" },
+    { id:"habitudes",       label:"HABITS",   icon:"🔥" },
+    { id:"planning",        label:"SEMAINE",  icon:"📅" },
+    { id:"non_negotiables", label:"RÈGLES",   icon:"🛡" },
   ];
 
   const template = PROGRAMME_TEMPLATE[facetteId] || PROGRAMME_TEMPLATE.athlete;
@@ -1324,10 +1628,17 @@ function ProgrammeScreen({ state, onKryos }) {
   };
 
   const tabContent = {
-    sport:    programme.sport || [],
-    lectures: programme.lectures || [],
-    habitudes:programme.habitudes || [],
-    planning: programme.planning || [],
+    sport:           programme.sport || [],
+    lectures:        programme.lectures || [],
+    habitudes:       programme.habitudes || [],
+    planning:        programme.planning || [],
+    non_negotiables: programme.non_negotiables_list || programme.non_negotiables || [
+      "Respecter les jours de repos — la récupération EST l'entraînement",
+      "S'arrêter 2-3 reps avant l'échec musculaire",
+      "Une grosse source de protéine à chaque repas",
+      "Ne jamais sauter le repas post-séance",
+      "Dormir 7h minimum les nuits avant séance",
+    ],
   };
 
   // ── PLAN CARDS ──
@@ -1377,14 +1688,22 @@ function ProgrammeScreen({ state, onKryos }) {
 
       {/* Programme actif */}
       <div style={{ marginBottom:18 }}>
-        <div style={{ display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10 }}>
-          <p style={{ color:"rgba(255,255,255,.18)",fontSize:8,letterSpacing:3,fontFamily:"'Orbitron',monospace" }}>
-            TON PROGRAMME — {f?.label.toUpperCase()}
-          </p>
-          {programme.generated
-            ? <span style={{ color:"#00ff6488",fontSize:8,fontFamily:"'Orbitron',monospace" }}>✦ IA · {programmeDate}</span>
-            : <span style={{ color:"rgba(255,255,255,.18)",fontSize:8,fontFamily:"'Orbitron',monospace" }}>BASE</span>
-          }
+        <div style={{ marginBottom:10 }}>
+          <div style={{ display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:4 }}>
+            <p style={{ color:"rgba(255,255,255,.18)",fontSize:8,letterSpacing:3,fontFamily:"'Orbitron',monospace" }}>
+              {programme.titre_cycle || `CYCLE 1 — ${f?.label.toUpperCase()}`}
+            </p>
+            {programme.generated
+              ? <span style={{ color:"#00ff6488",fontSize:8,fontFamily:"'Orbitron',monospace" }}>✦ IA · {programmeDate}</span>
+              : <span style={{ color:"rgba(255,255,255,.18)",fontSize:8,fontFamily:"'Orbitron',monospace" }}>BASE</span>
+            }
+          </div>
+          {programme.objectif_cycle && (
+            <p style={{ color:`${f?.color}88`,fontSize:10,fontFamily:"'Share Tech Mono',monospace",lineHeight:1.5,
+              padding:"6px 10px",background:`${f?.color}08`,borderRadius:4,border:`1px solid ${f?.color}18` }}>
+              🎯 {programme.objectif_cycle}
+            </p>
+          )}
         </div>
 
         {/* Tabs */}
@@ -1767,13 +2086,32 @@ const getKryosDaily = (facetteId) => {
 // ═══════════════════════════════════════════════════════════
 const QUESTIONS_PROGRAMME = {
   athlete: [
-    { id:"niveau",     label:"Ton niveau actuel",         type:"select",  options:["Débutant — moins de 3 mois", "Intermédiaire — 3-12 mois", "Avancé — plus d'1 an", "Compétiteur"] },
-    { id:"objectif",   label:"Ton objectif principal",    type:"select",  options:["Perdre du poids / recomposition", "Prendre de la masse", "Performer / endurance", "Santé générale / énergie"] },
-    { id:"dispo",      label:"Jours disponibles/semaine", type:"select",  options:["2-3 jours", "4-5 jours", "6-7 jours", "Variable selon semaine"] },
-    { id:"contrainte", label:"Contrainte physique",       type:"select",  options:["Aucune", "Dos / lombaires", "Genoux", "Épaules", "Autre blessure"] },
-    { id:"equipement", label:"Équipement disponible",     type:"select",  options:["Salle de sport complète", "Home gym basique", "Aucun matériel — poids du corps", "Outdoor / running"] },
-    { id:"heure",      label:"Créneau préféré",           type:"select",  options:["Matin (avant 9h)", "Midi", "Après-midi", "Soir (après 18h)"] },
-    { id:"blocage",    label:"Ton plus grand blocage",    type:"text",    placeholder:"Ce qui t'a empêché de tenir jusqu'ici..." },
+    // BLOC 1 — Contexte de vie
+    { id:"horaires",    label:"Tu travailles à quels horaires ?",           type:"select", options:["Matin (fini avant 14h)", "Journée classique (9h-18h)", "Soir / nuit", "Variable / freelance"] },
+    { id:"lieu",        label:"Tu t'entraînes où ?",                        type:"select", options:["Salle de sport complète", "Home gym basique", "Extérieur / running uniquement", "Plusieurs selon les jours"] },
+    { id:"duree",       label:"Temps réel par séance",                      type:"select", options:["30 minutes max", "45 minutes", "1 heure", "1h30 et plus"] },
+    // BLOC 2 — Niveau & état actuel
+    { id:"niveau",      label:"Ton niveau sportif actuel",                  type:"select", options:["Débutant — moins de 3 mois de régularité", "Intermédiaire — 3 à 12 mois", "Avancé — plus d'1 an de pratique régulière", "Compétiteur / sportif confirmé"] },
+    { id:"sport_actuel",label:"Tu fais quoi comme sport en ce moment ?",    type:"text",   placeholder:"Ex: footing 2x/sem, salle 1x/sem... ou rien depuis 6 mois" },
+    { id:"point_faible",label:"Ton point faible physique le plus honnête",  type:"select", options:["Endurance — je m'essoufle vite", "Force — je manque de puissance", "Régularité — je commence et j'arrête", "Alimentation — c'est là que ça coince", "Récupération — je dors mal, je suis tendu"] },
+    { id:"contrainte",  label:"Contrainte physique à prendre en compte",    type:"select", options:["Aucune — je peux tout faire", "Dos / lombaires fragiles", "Genoux sensibles", "Épaules / coiffe des rotateurs", "Autre blessure ou limitation"] },
+    // BLOC 3 — Objectif précis
+    { id:"objectif",    label:"Ton objectif principal ces 15 jours",        type:"select", options:["Perdre du poids / recomposition corporelle", "Prendre de la masse musculaire", "Améliorer mes performances / endurance", "Retrouver de l'énergie et me sentir bien", "Esthétique — apparence physique"] },
+    { id:"chiffre",     label:"Objectif chiffré ou résultat concret visé",  type:"text",   placeholder:"Ex: perdre 3 kg, courir 5 km sans m'arrêter, faire 10 tractions..." },
+    // BLOC 4 — Disponibilités
+    { id:"seances",     label:"Séances sport par semaine — ce que tu peux vraiment tenir", type:"select", options:["2 séances", "3 séances", "4 séances", "5 séances ou plus"] },
+    { id:"jours_fixes", label:"Jours fixes disponibles pour t'entraîner",   type:"text",   placeholder:"Ex: lundi, mercredi, vendredi soir — ou 'variable selon la semaine'" },
+    { id:"creneau",     label:"Tu préfères t'entraîner quand ?",            type:"select", options:["Matin (avant 9h) — avant le travail", "Midi — pause déjeuner", "Après-midi", "Soir après 18h"] },
+    // BLOC 5 — Alimentation
+    { id:"alim_actuelle",label:"Ton alimentation actuelle",                 type:"select", options:["Chaos total — j'improvise à chaque repas", "Structure partielle — quelques bons repas, beaucoup d'écarts", "Plutôt propre mais des trous", "Déjà structurée — je cherche l'optimisation"] },
+    { id:"alim_probleme",label:"Ton plus grand problème alimentaire",       type:"select", options:["Grignotage entre les repas", "Restaurants / repas sociaux non contrôlés", "Portions trop grandes", "Pas assez de protéines", "Aucune structure — je mange n'importe quand"] },
+    { id:"cuisine",      label:"Tu cuisines ou tu achètes prêt ?",          type:"select", options:["Je cuisine la plupart du temps", "Moitié-moitié", "Rarement — je mange surtout dehors ou prêt-à-manger"] },
+    // BLOC 6 — Récupération
+    { id:"sommeil",      label:"Tu dors combien d'heures en moyenne ?",     type:"select", options:["Moins de 6h", "6-7h", "7-8h", "8h et plus"] },
+    { id:"stress",       label:"Ton niveau de stress général",              type:"select", options:["Bas — je suis plutôt serein", "Modéré — quelques tensions", "Élevé — ça pèse", "Très élevé — je suis souvent à bout"] },
+    // BLOC 7 — Ce qui a déjà échoué
+    { id:"echec",        label:"Ce que tu as déjà essayé et abandonné",     type:"text",   placeholder:"Ex: salle 3x/sem pendant 1 mois, régime, running le matin..." },
+    { id:"pourquoi",     label:"Pourquoi ça n'a pas tenu selon toi ?",      type:"text",   placeholder:"Sois honnête — manque de temps, motivation, résultats trop lents, douleur..." },
   ],
   createur: [
     { id:"medium",     label:"Ton medium créatif principal", type:"select", options:["Écriture / contenu", "Vidéo / photo", "Design / art visuel", "Musique / son", "Code / produit", "Autre"] },
@@ -1852,37 +2190,142 @@ const callClaude = async (prompt) => {
   }
 };
 
+const buildAthletePrompt = (valeurs, identite, answers) => {
+  const a = answers || {};
+  return `Tu es un coach sportif expert en transformation physique et identitaire. Génère un programme de cycle (15 jours) complet et structuré, similaire à un vrai document de coaching.
+
+PROFIL DU SPORTIF:
+- Identité cible: "${identite}"
+- Valeurs: ${valeurs.join(", ")}
+- Horaires de travail: ${a.horaires || "non précisé"}
+- Lieu d'entraînement: ${a.lieu || "non précisé"}
+- Temps disponible par séance: ${a.duree || "non précisé"}
+- Niveau actuel: ${a.niveau || "non précisé"}
+- Sport actuel: ${a.sport_actuel || "aucun"}
+- Point faible principal: ${a.point_faible || "non précisé"}
+- Contrainte physique: ${a.contrainte || "aucune"}
+- Objectif: ${a.objectif || "non précisé"}
+- Objectif chiffré: ${a.chiffre || "non précisé"}
+- Séances/semaine possibles: ${a.seances || "non précisé"}
+- Jours fixes: ${a.jours_fixes || "non précisé"}
+- Créneau préféré: ${a.creneau || "non précisé"}
+- Alimentation actuelle: ${a.alim_actuelle || "non précisé"}
+- Problème alimentaire: ${a.alim_probleme || "non précisé"}
+- Cuisine ou prêt-à-manger: ${a.cuisine || "non précisé"}
+- Sommeil: ${a.sommeil || "non précisé"}
+- Stress: ${a.stress || "non précisé"}
+- Ce qui a déjà échoué: ${a.echec || "rien de précisé"}
+- Pourquoi ça n'a pas tenu: ${a.pourquoi || "non précisé"}
+
+RÈGLES DE GÉNÉRATION:
+- Adapte TOUT au profil réel. Si contrainte genou → pas de squat lourd. Si peu de temps → séances 45min max.
+- Les séances muscu doivent avoir 2 types (A et B) avec exercices précis et séries/reps
+- L'alimentation sans comptage de calories — règle de l'assiette + protéines cibles
+- La semaine type avec jours nommés selon les disponibilités réelles
+- Les 5 non-négociables du cycle = les règles d'or à ne jamais briser
+- Sois honnête sur la progression — débutant ≠ avancé
+
+Réponds UNIQUEMENT en JSON valide, sans markdown:
+{
+  "titre_cycle": "nom du cycle adapté au profil",
+  "objectif_cycle": "objectif précis et mesurable pour ces 15 jours",
+  "sport": [
+    "Séance A (ex: Lun/Jeu) — Tirage vertical 3x8-10, Développé poitrine 3x8-10, Gainage 3x45s",
+    "Séance B (ex: Mar/Ven) — Rowing assis 3x8-10, Développé épaules 3x8-10, Presse cuisses 3x10",
+    "Cardio/endurance — type, durée, fréquence selon profil",
+    "Règle d'or muscu — s'arrêter X reps avant l'échec, progression quand..."
+  ],
+  "lectures": [
+    "Titre — Auteur (raison précise liée au profil et à l'objectif)",
+    "Titre — Auteur (raison précise)",
+    "Titre — Auteur (raison précise)"
+  ],
+  "habitudes": [
+    "Habitude 1 — concrète et mesurable",
+    "Habitude 2 — concrète et mesurable",
+    "Habitude 3 — concrète et mesurable",
+    "Habitude 4 — concrète et mesurable"
+  ],
+  "nutrition": {
+    "regle_assiette": "description règle assiette adaptée",
+    "proteines_cible": "X g/jour — sources recommandées",
+    "repas_types": ["Petit-déj: options", "Déjeuner: options", "Dîner: options"],
+    "regel_alcool_social": "conseil adapté au profil"
+  },
+  "planning": [
+    "Lun: séance précise + où",
+    "Mar: séance précise ou repos",
+    "Mer: séance précise",
+    "Jeu: séance précise + où",
+    "Ven: séance ou cardio léger",
+    "Sam: repos ou activité légère",
+    "Dim: footing ou récup active"
+  ],
+  "non_negotiables": [
+    "Non-négociable 1 — précis et actionnable",
+    "Non-négociable 2",
+    "Non-négociable 3",
+    "Non-négociable 4",
+    "Non-négociable 5"
+  ],
+  "generated": true
+}`;
+};
+
+const buildGenericPrompt = (facetteId, valeurs, identite, answers) => {
+  const f = FACETTES.find(fc => fc.id === facetteId);
+  const a = answers || {};
+  const reponsesText = Object.entries(a).map(([k,v]) => `- ${k}: ${v}`).join("\n");
+  return `Tu es un coach expert en transformation identitaire — facette ${f?.label}.
+
+PROFIL:
+- Identité cible: "${identite}"
+- Valeurs: ${valeurs.join(", ")}
+- Réponses questionnaire:
+${reponsesText}
+
+Génère un programme de cycle 15 jours complet et personnalisé.
+Réponds UNIQUEMENT en JSON:
+{
+  "titre_cycle": "nom du cycle",
+  "objectif_cycle": "objectif précis 15 jours",
+  "sport": ["item1", "item2", "item3"],
+  "lectures": ["Titre — Auteur (raison)", "Titre — Auteur (raison)", "Titre — Auteur (raison)"],
+  "habitudes": ["habitude concrète 1", "habitude 2", "habitude 3", "habitude 4"],
+  "planning": ["Lun: ...", "Mar: ...", "Mer: ...", "Jeu: ...", "Ven: ...", "Sam: ...", "Dim: ..."],
+  "non_negotiables": ["règle 1", "règle 2", "règle 3", "règle 4", "règle 5"],
+  "generated": true
+}`;
+};
+
 const genererProgramme = async (facetteId, valeurs=[], identite="", tier="gratuit", answers={}) => {
   const f = FACETTES.find(fc => fc.id === facetteId);
   const template = PROGRAMME_TEMPLATE[facetteId] || PROGRAMME_TEMPLATE.athlete;
-  const reponsesText = answers && Object.keys(answers).length > 0
-    ? "\n\nRéponses du questionnaire:\n" + Object.entries(answers).map(([k,v]) => `- ${k}: ${v}`).join("\n")
-    : "";
 
-  const prompt = `Tu es un coach de transformation identitaire expert. Génère un programme 90 jours hyper-personnalisé.
-
-Facette travaillée: ${f?.label}
-Valeurs: ${valeurs.join(", ")}
-Identité cible: "${identite}"${reponsesText}
-
-Réponds UNIQUEMENT en JSON valide, sans markdown, sans texte avant ou après:
-{
-  "sport": ["item1 adapté au profil", "item2", "item3", "item4"],
-  "lectures": ["Titre — Auteur (pourquoi ce livre pour ce profil)", "Titre — Auteur (raison)", "Titre — Auteur (raison)"],
-  "habitudes": ["habitude1 adaptée", "habitude2", "habitude3", "habitude4"],
-  "planning": ["Lun: activité spécifique", "Mar: ...", "Mer: ...", "Jeu: ...", "Ven: ...", "Sam: ...", "Dim: ..."],
-  "generated": true
-}
-
-Personnalise chaque item selon les réponses au questionnaire. Sois concret et spécifique. Max 65 caractères par item.`;
+  const prompt = facetteId === "athlete"
+    ? buildAthletePrompt(valeurs, identite, answers)
+    : buildGenericPrompt(facetteId, valeurs, identite, answers);
 
   const raw = await callClaude(prompt);
-  if (!raw) return null;
+  if (!raw) return { ...template, planning: template.emploi_du_temps, generated: false };
   try {
     const clean = raw.replace(/```json|```/g, "").trim();
-    return JSON.parse(clean);
+    const parsed = JSON.parse(clean);
+    // Normalize: if nutrition object, flatten into habitudes
+    if (parsed.nutrition) {
+      const nutri = parsed.nutrition;
+      parsed.habitudes = [
+        ...(parsed.habitudes||[]),
+        nutri.proteines_cible ? `Protéines: ${nutri.proteines_cible}` : null,
+        nutri.regle_assiette ? `Assiette: ${nutri.regle_assiette}` : null,
+      ].filter(Boolean);
+      parsed.nutrition_detail = nutri;
+    }
+    if (parsed.non_negotiables) {
+      parsed.non_negotiables_list = parsed.non_negotiables;
+    }
+    return parsed;
   } catch {
-    // Fallback to template
     return { ...template, planning: template.emploi_du_temps, generated: false };
   }
 };
@@ -1916,6 +2359,66 @@ Réponds UNIQUEMENT en JSON:
     return JSON.parse(raw.replace(/```json|```/g, "").trim());
   } catch { return null; }
 };
+
+const CYCLE_DAYS = 15;
+const getCycleDay = (cycleStart) => {
+  if (!cycleStart) return 1;
+  const diff = Math.floor((new Date() - new Date(cycleStart)) / 86400000);
+  return diff + 1;
+};
+const isCycleEnd = (cycleStart) => getCycleDay(cycleStart) >= CYCLE_DAYS;
+
+const genererBilanCycle = async (state) => {
+  const f = FACETTES.find(fc => fc.id === state.facetteId);
+  const joursFaits = Object.keys(state.histoire||{}).length;
+  const streak = getStreak(state.histoire||{});
+  const rank = getRank(state.xp||0);
+  
+  // Calc prog completion rate
+  const progEntries = Object.values(state.histoire||{}).filter(j => j.prog);
+  const avgCompletion = progEntries.length > 0
+    ? Math.round(progEntries.reduce((a,j) => a + (j.prog?.pct||0), 0) / progEntries.length)
+    : 0;
+  
+  // Avg energie/sommeil
+  const entries = Object.values(state.histoire||{});
+  const avgEnergie = entries.length > 0
+    ? (entries.reduce((a,j) => a + (j.energie||0), 0) / entries.length).toFixed(1)
+    : 0;
+  const sommeilOk = entries.filter(j=>j.sommeil).length;
+
+  const prompt = `Tu es Kryos, coach de transformation identitaire. Génère un bilan de cycle percutant et honnête.
+
+Données du cycle ${state.cycleNum||1} (${CYCLE_DAYS} jours):
+- Facette: ${f?.label}
+- Identité cible: "${state.identite}"
+- Rang atteint: ${rank.id} — ${rank.title}
+- XP total: ${state.xp}
+- Streak: ${streak} jours consécutifs
+- Jours actifs: ${joursFaits}/${CYCLE_DAYS}
+- Complétion programme: ${avgCompletion}%
+- Énergie moyenne: ${avgEnergie}/10
+- Nuits de sommeil loggées: ${sommeilOk}/${CYCLE_DAYS}
+- Valeurs: ${(state.valeurs||[]).join(", ")}
+
+Réponds UNIQUEMENT en JSON:
+{
+  "titre": "titre court cinématique (ex: 'CYCLE 1 — TERMINÉ')",
+  "verdict": "1 phrase directe sur la performance globale",
+  "analyse": "2-3 phrases d'analyse honnête basée sur les chiffres réels",
+  "victoire": "La plus grande victoire de ce cycle (spécifique)",
+  "chantier": "Le point le plus important à améliorer au cycle suivant",
+  "message_kryos": "1 phrase finale de Kryos — ton style direct et scientifique",
+  "score": ${Math.round((joursFaits/CYCLE_DAYS*40) + (avgCompletion*0.3) + (streak/CYCLE_DAYS*30))}
+}`;
+
+  const raw = await callClaude(prompt);
+  if (!raw) return null;
+  try {
+    return JSON.parse(raw.replace(/```json|```/g, "").trim());
+  } catch { return null; }
+};
+
 
 // ═══════════════════════════════════════════════════════════
 // TIERS & PROGRAMMES
@@ -2010,13 +2513,15 @@ const PROGRAMME_TEMPLATE = {
   },
 };
 
-const INIT={nom:null,valeurs:[],facetteId:null,identite:null,xp:0,totalVotes:0,histoire:{},facettesState:{},votesJour:{},customVotes:{},sommeilJour:false,energieJour:0,aureleJour:null,aureleAnswer:null,bossJour:false,lastDay:null,lastWeek:null,usedAureles:[],feedbacks:[],kryosDaily:null,kryosDailyDate:null,tier:"gratuit",programmeIA:null,programmeDate:null,rapportHebdo:null,objectifsCustom:[],questionnaireDone:false,questionnaireAnswers:{}};
+const INIT={nom:null,valeurs:[],facetteId:null,identite:null,xp:0,totalVotes:0,histoire:{},facettesState:{},votesJour:{},customVotes:{},sommeilJour:false,energieJour:0,aureleJour:null,aureleAnswer:null,bossJour:false,lastDay:null,lastWeek:null,usedAureles:[],feedbacks:[],kryosDaily:null,kryosDailyDate:null,tier:"gratuit",programmeIA:null,programmeDate:null,rapportHebdo:null,objectifsCustom:[],questionnaireDone:false,questionnaireAnswers:{},cycleStart:null,cycleNum:1,progJour:{},bilanCycle:null,bilanGenere:false};
 
 export default function App() {
   const [screen,setScreen]=useState("intro");
   const [tab,setTab]=useState("facette");
   const [showDayClose,setShowDayClose]=useState(false);
   const [showQuestionnaire,setShowQuestionnaire]=useState(false);
+  const [showBilan,setShowBilan]=useState(false);
+  const [bilanData,setBilanData]=useState(null);
   const [kryos,setKryos]=useState(null);
   const [xpNotif,setXpNotif]=useState(null);
   const [rankNotif,setRankNotif]=useState(null);
@@ -2127,6 +2632,19 @@ export default function App() {
     }
   },[tab]);
 
+
+  // Cycle end detection
+  useEffect(()=>{
+    if(!state.cycleStart||!state.nom) return;
+    if(isCycleEnd(state.cycleStart) && !state.bilanGenere && !showBilan){
+      setState(s=>{ const ns={...s,bilanGenere:true}; persist(ns); return ns; });
+      genererBilanCycle(state).then(b=>{
+        setBilanData(b);
+        setShowBilan(true);
+      });
+    }
+  },[state.cycleStart, state.histoire]);
+
   // Kryos daily thought — load once per day
   useEffect(()=>{
     if(!state.nom||!state.facetteId) return;
@@ -2160,9 +2678,26 @@ export default function App() {
   const handleChangeFacette=newId=>setState(s=>{ const fState={...(s.facettesState||{})}; if(!fState[newId])fState[newId]={xp:0}; const ns={...s,facetteId:newId,identite:`Je suis un·e ${FACETTES.find(f=>f.id===newId)?.label.toLowerCase()}`,facettesState:fState}; persist(ns); setTimeout(()=>setKryos("facette_changed"),400); return ns; });
 
 
+
+  const handleProgCheck = (dateKey, checks, pct) => {
+    setState(s => {
+      const newProgJour = { ...s.progJour, [dateKey]: checks };
+      const newHist = { ...s.histoire, [dateKey]: { ...(s.histoire[dateKey]||{}), prog: { checks, pct } } };
+      const ns = { ...s, progJour: newProgJour, histoire: newHist };
+      persist(ns); return ns;
+    });
+  };
+
+  const handleNextCycle = () => {
+    const ns = { ...state, cycleNum:(state.cycleNum||1)+1, cycleStart:today(), progJour:{}, questionnaireDone:false, programmeIA:null, bilanGenere:false };
+    setState(ns); persist(ns);
+    setShowBilan(false);
+    setShowQuestionnaire(true);
+  };
+
   const handleGenererProgramme = async (answers={}) => {
     const prog = await genererProgramme(state.facetteId, state.valeurs, state.identite, state.tier||"gratuit", answers);
-    if (prog) update({ programmeIA: prog, programmeDate: today(), questionnaireAnswers: answers, questionnaireDone: true });
+    if (prog) update({ programmeIA: prog, programmeDate: today(), questionnaireAnswers: answers, questionnaireDone: true, cycleStart: state.cycleStart || today() });
   };
 
   const handleQuestionnaireSubmit = async (answers) => {
@@ -2247,11 +2782,12 @@ export default function App() {
           </div>
         )}
 
-        {tab==="votes"&&<VotesScreen state={state} onVote={handleVote} onSommeil={handleSommeil} onEnergie={n=>update({energieJour:n})} onAurele={()=>{ const q=getNextAurele(state.usedAureles||[]); update({aureleJour:q,usedAureles:[...(state.usedAureles||[]),q]}); }} onAureleAnswer={t=>update({aureleAnswer:t})} onBoss={handleBoss} onDayClose={()=>setShowDayClose(true)}/>}
+        {tab==="votes"&&<VotesScreen state={state} onVote={handleVote} onSommeil={handleSommeil} onEnergie={n=>update({energieJour:n})} onAurele={()=>{ const q=getNextAurele(state.usedAureles||[]); update({aureleJour:q,usedAureles:[...(state.usedAureles||[]),q]}); }} onAureleAnswer={t=>update({aureleAnswer:t})} onBoss={handleBoss} onDayClose={()=>setShowDayClose(true)} onProgCheck={handleProgCheck}/>}
         {tab==="profil"&&<ProfileScreen state={state} onKryos={setKryos}/>}
         {tab==="quetes"&&<QuestsScreen state={state} onChangeFacette={handleChangeFacette} onKryos={setKryos}/>}
         {tab==="retour"&&<FeedbackScreen state={state} onSubmit={handleFeedback}/>}
         {tab==="programme"&&<ProgrammeScreen state={state} onKryos={setKryos}/>}
+        {showBilan&&bilanData&&<BilanCycleScreen state={state} bilan={bilanData} onNextCycle={handleNextCycle} onClose={()=>setShowBilan(false)}/>}
         {showQuestionnaire&&<KryosQuestionnaire facetteId={state.facetteId} onDone={handleQuestionnaireSubmit} onSkip={()=>{setShowQuestionnaire(false);handleGenererProgramme({});}} />}
 
         {/* Bottom nav */}
