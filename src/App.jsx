@@ -450,7 +450,7 @@ function InfoTip({ text, color="#00ffcc" }) {
           borderRadius:6, padding:"10px 12px", width:220, zIndex:500,
           boxShadow:`0 4px 20px rgba(0,0,0,.6)` }}>
           <p style={{ color:"rgba(255,255,255,.65)", fontSize:10, lineHeight:1.6, fontFamily:"'Share Tech Mono',monospace" }}>{text}</p>
-          <div style={{ position:"absolute", bottom:-5, left:"50%", transform:"translateX(-50%)",
+          <div style={{ position:"absolute", bottom:-5, left:"50%",
             width:8, height:8, background:"rgba(4,4,20,.97)", border:`1px solid ${color}33`,
             borderBottom:"none", borderRight:"none", transform:"translateX(-50%) rotate(225deg)" }}/>
         </div>
