@@ -1274,6 +1274,7 @@ function VotesScreen({ state, onVote, onSommeil, onEnergie, onAurele, onAureleAn
   const doneCount=Object.values(votesJour).filter(Boolean).length;
   const xpToday=vData.filter(v=>votesJour[v.label]).reduce((a,v)=>a+v.xp,0)+(sommeilJour?10:0)+(bossJour?50:0);
   const boss=BOSS_LIST[new Date().getDate()%BOSS_LIST.length];
+  const journeeScellee = !!(state.journeeScellee && state.journeeScellee === today());
   const [showAns,setShowAns]=useState(false);
   const [ansText,setAnsText]=useState(aureleAnswer||"");
   const [votesTab,setVotesTab]=useState("aujourd_hui");
@@ -1300,6 +1301,15 @@ function VotesScreen({ state, onVote, onSommeil, onEnergie, onAurele, onAureleAn
         <ProgrammeJour state={state} onCheck={onProgCheck}/>
       )}
       {votesTab==="aujourd_hui" && <div>
+      {journeeScellee && (
+        <div style={{display:"flex",alignItems:"center",gap:10,padding:"9px 14px",marginBottom:10,background:"rgba(167,139,250,.06)",border:"1px solid rgba(167,139,250,.2)",borderRadius:6}}>
+          <span style={{fontSize:14}}>✦</span>
+          <div>
+            <p style={{color:"#a78bfa",fontSize:9,fontFamily:"'Orbitron',monospace",letterSpacing:2}}>JOURNÉE SCELLÉE</p>
+            <p style={{color:"rgba(255,255,255,.2)",fontSize:8,fontFamily:"'Share Tech Mono',monospace",marginTop:1}}>Reviens demain pour voter</p>
+          </div>
+        </div>
+      )}
       <div style={{ display:"flex",justifyContent:"space-between",alignItems:"center",background:"rgba(0,255,100,.05)",border:"1px solid rgba(0,255,100,.1)",borderRadius:6,padding:"9px 14px",marginBottom:13 }}>
         <span style={{ color:"rgba(255,255,255,.28)",fontSize:9,fontFamily:"'Orbitron',monospace",letterSpacing:2 }}>XP AUJOURD'HUI</span>
         <span style={{ color:"#00ff64",fontSize:17,fontFamily:"'Orbitron',monospace",fontWeight:700,textShadow:"0 0 12px #00ff6477" }}>+{xpToday}</span>
@@ -1310,13 +1320,13 @@ function VotesScreen({ state, onVote, onSommeil, onEnergie, onAurele, onAureleAn
           <div style={{flex:1}}><p style={{ color:"#ef4444",fontSize:9,fontFamily:"'Orbitron',monospace",marginBottom:3 }}>⚔ BOSS HEBDO</p><p style={{ color:"rgba(255,255,255,.32)",fontSize:11 }}>{boss}</p></div>
           <div style={{ display:"flex",flexDirection:"column",alignItems:"center",gap:3,marginLeft:10 }}>
             <span style={{ color:"#ef444455",fontSize:8,fontFamily:"'Orbitron',monospace" }}>+50 XP</span>
-            <button onClick={onBoss} style={{ padding:"5px 10px",borderRadius:3,background:bossJour?"rgba(239,68,68,.18)":"rgba(255,255,255,.025)",border:`1px solid ${bossJour?"#ef4444":"rgba(239,68,68,.18)"}`,color:bossJour?"#ef4444":"rgba(255,255,255,.22)",fontSize:9,cursor:"pointer",fontFamily:"'Orbitron',monospace",transition:"all .2s" }}>{bossJour?"✓":"RELEVER"}</button>
+            <button onClick={()=>!journeeScellee&&onBoss()} style={{ padding:"5px 10px",borderRadius:3,background:bossJour?"rgba(239,68,68,.18)":"rgba(255,255,255,.025)",border:`1px solid ${bossJour?"#ef4444":"rgba(239,68,68,.18)"}`,color:bossJour?"#ef4444":"rgba(255,255,255,.22)",fontSize:9,cursor:"pointer",fontFamily:"'Orbitron',monospace",transition:"all .2s" }}>{bossJour?"✓":"RELEVER"}</button>
           </div>
         </div>
       </div>
       {/* Sommeil + Energie */}
       <div style={{ display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:9 }}>
-        <button onClick={onSommeil} style={{ padding:"10px 10px",textAlign:"left",background:sommeilJour?"rgba(96,165,250,.07)":"rgba(255,255,255,.02)",border:`1px solid ${sommeilJour?"#60a5fa33":"rgba(96,165,250,.1)"}`,borderRadius:8,cursor:"pointer",transition:"all .2s" }}>
+        <button onClick={()=>!journeeScellee&&onSommeil()} style={{ padding:"10px 10px",textAlign:"left",opacity:journeeScellee?0.5:1,cursor:journeeScellee?"not-allowed":"pointer",background:sommeilJour?"rgba(96,165,250,.07)":"rgba(255,255,255,.02)",border:`1px solid ${sommeilJour?"#60a5fa33":"rgba(96,165,250,.1)"}`,borderRadius:8,cursor:"pointer",transition:"all .2s" }}>
           <p style={{ color:"#60a5fa",fontSize:9,fontFamily:"'Orbitron',monospace",marginBottom:3 }}>🌙 SOMMEIL</p>
           <p style={{ color:sommeilJour?"#60a5fa":"rgba(255,255,255,.22)",fontSize:11,fontFamily:"'Orbitron',monospace" }}>{sommeilJour?"✓ +10xp":"+ LOG"}</p>
         </button>
@@ -1324,7 +1334,7 @@ function VotesScreen({ state, onVote, onSommeil, onEnergie, onAurele, onAureleAn
           <p style={{ color:"#ffd700",fontSize:9,fontFamily:"'Orbitron',monospace",marginBottom:5 }}>✦ ÉNERGIE</p>
           <div style={{ display:"flex",gap:2 }}>
             {[1,2,3,4,5,6,7,8,9,10].map(n=>(
-              <button key={n} onClick={()=>onEnergie(n)} style={{ flex:1,height:13,borderRadius:1,background:(energieJour||0)>=n?n>=8?"#00ff64":n>=5?"#ffd700":"#f97316":"rgba(255,255,255,.05)",border:"none",cursor:"pointer",transition:"all .15s" }}/>
+              <button key={n} onClick={()=>!journeeScellee&&onEnergie(n)} style={{ flex:1,height:13,borderRadius:1,background:(energieJour||0)>=n?n>=8?"#00ff64":n>=5?"#ffd700":"#f97316":"rgba(255,255,255,.05)",border:"none",cursor:"pointer",transition:"all .15s" }}/>
             ))}
           </div>
         </div>
@@ -1354,7 +1364,7 @@ function VotesScreen({ state, onVote, onSommeil, onEnergie, onAurele, onAureleAn
           {vData.map(v=>{
             const done=!!votesJour[v.label];
             return (
-              <button key={v.label} onClick={()=>onVote(v)} style={{ display:"flex",alignItems:"center",justifyContent:"space-between",padding:"9px 11px",background:done?`${f?.color}0c`:"rgba(255,255,255,.02)",border:`1px solid ${done?f?.color+"2a":"rgba(255,255,255,.04)"}`,borderRadius:4,cursor:"pointer",transition:"all .2s",boxShadow:done?`inset 0 0 18px ${f?.color}07`:"none" }}>
+              <button key={v.label} onClick={()=>!journeeScellee&&onVote(v)} style={{ display:"flex",alignItems:"center",justifyContent:"space-between",padding:"9px 11px",background:done?`${f?.color}0c`:"rgba(255,255,255,.02)",border:`1px solid ${done?f?.color+"2a":"rgba(255,255,255,.04)"}`,borderRadius:4,cursor:journeeScellee?"not-allowed":"pointer",transition:"all .2s",boxShadow:done?`inset 0 0 18px ${f?.color}07`:"none",opacity:journeeScellee?0.6:1 }}>
                 <div style={{ display:"flex",alignItems:"center",gap:9 }}><span style={{fontSize:12}}>{v.icon}</span><span style={{ color:done?f?.color:"rgba(255,255,255,.38)",fontSize:11,fontFamily:"'Orbitron',monospace" }}>{v.label}</span></div>
                 <div style={{ display:"flex",alignItems:"center",gap:7 }}>
                   <span style={{ color:"#00ff6430",fontSize:8,fontFamily:"'Orbitron',monospace" }}>+{v.xp}</span>
@@ -1370,6 +1380,7 @@ function VotesScreen({ state, onVote, onSommeil, onEnergie, onAurele, onAureleAn
       </div>}
       {(() => {
         const allVoted = vData.length > 0 && vData.every(v => !!votesJour[v.label]);
+            const canSeal = allVoted && !journeeScellee;
         const someVoted = doneCount > 0;
         return (
           <div style={{padding:"0 16px 16px"}}>
@@ -1383,8 +1394,8 @@ function VotesScreen({ state, onVote, onSommeil, onEnergie, onAurele, onAureleAn
               </div>
             )}
             <button
-              onClick={allVoted ? onDayClose : undefined}
-              disabled={!allVoted}
+              onClick={canSeal ? onDayClose : undefined}
+              disabled={!canSeal}
               style={{
                 width:"100%",
                 marginTop:allVoted||!someVoted?14:0,
@@ -1394,18 +1405,18 @@ function VotesScreen({ state, onVote, onSommeil, onEnergie, onAurele, onAureleAn
                 fontSize:10,
                 letterSpacing:3,
                 transition:"all .3s",
-                cursor:allVoted?"pointer":"not-allowed",
-                background:allVoted
+                cursor:canSeal?"pointer":"not-allowed",
+                background:canSeal
                   ?"linear-gradient(135deg,rgba(167,139,250,.15),rgba(167,139,250,.08))"
-                  :"rgba(255,255,255,.02)",
-                border:allVoted
+                  :journeeScellee?"rgba(167,139,250,.04)":"rgba(255,255,255,.02)",
+                border:canSeal
                   ?"1px solid rgba(167,139,250,.5)"
-                  :"1px solid rgba(255,255,255,.05)",
-                color:allVoted?"#a78bfa":"rgba(255,255,255,.15)",
-                boxShadow:allVoted?"0 0 20px rgba(167,139,250,.15),inset 0 0 10px rgba(167,139,250,.05)":"none",
-                opacity:allVoted?1:0.5,
+                  :journeeScellee?"1px solid rgba(167,139,250,.15)":"1px solid rgba(255,255,255,.05)",
+                color:canSeal?"#a78bfa":journeeScellee?"rgba(167,139,250,.4)":"rgba(255,255,255,.15)",
+                boxShadow:canSeal?"0 0 20px rgba(167,139,250,.15),inset 0 0 10px rgba(167,139,250,.05)":"none",
+                opacity:canSeal?1:0.6,
               }}>
-              {allVoted ? "✦ SCELLER LA JOURNÉE" : `🔒 ${vData.length - doneCount} VOTE${vData.length - doneCount > 1 ? "S" : ""} RESTANT`}
+              {journeeScellee ? "✦ JOURNÉE SCELLÉE" : allVoted ? "✦ SCELLER LA JOURNÉE" : `🔒 ${vData.length - doneCount} VOTE${vData.length - doneCount > 1 ? "S" : ""} RESTANT`}
             </button>
             {!allVoted && !someVoted && (
               <p style={{textAlign:"center",marginTop:6,color:"rgba(255,255,255,.1)",fontSize:8,fontFamily:"'Share Tech Mono',monospace"}}>
@@ -2767,12 +2778,13 @@ const PROGRAMME_TEMPLATE = {
   },
 };
 
-const INIT={nom:null,valeurs:[],facetteId:null,identite:null,xp:0,totalVotes:0,histoire:{},facettesState:{},votesJour:{},customVotes:{},sommeilJour:false,energieJour:0,aureleJour:null,aureleAnswer:null,bossJour:false,lastDay:null,lastWeek:null,usedAureles:[],feedbacks:[],kryosDaily:null,kryosDailyDate:null,tier:"gratuit",programmeIA:null,programmeDate:null,rapportHebdo:null,objectifsCustom:[],questionnaireDone:false,questionnaireAnswers:{},cycleStart:null,cycleNum:1,progJour:{},bilanCycle:null,bilanGenere:false};
+const INIT={nom:null,valeurs:[],facetteId:null,identite:null,xp:0,totalVotes:0,histoire:{},facettesState:{},votesJour:{},customVotes:{},sommeilJour:false,energieJour:0,aureleJour:null,aureleAnswer:null,bossJour:false,lastDay:null,lastWeek:null,usedAureles:[],feedbacks:[],kryosDaily:null,kryosDailyDate:null,tier:"gratuit",programmeIA:null,programmeDate:null,rapportHebdo:null,objectifsCustom:[],questionnaireDone:false,questionnaireAnswers:{},cycleStart:null,cycleNum:1,progJour:{},bilanCycle:null,bilanGenere:false,journeeScellee:null};
 
 export default function App() {
   const [screen,setScreen]=useState("intro");
   const [tab,setTab]=useState("facette");
   const [showDayClose,setShowDayClose]=useState(false);
+  const handleScellerJournee = () => { setShowDayClose(true); update({journeeScellee:today()}); };
   const [showQuestionnaire,setShowQuestionnaire]=useState(false);
   const [showBilan,setShowBilan]=useState(false);
   const [bilanData,setBilanData]=useState(null);
@@ -2802,7 +2814,7 @@ export default function App() {
         const ns={
           ...s,
           histoire:{...s.histoire,[s.lastDay]:{votes:s.votesJour,sommeil:s.sommeilJour,energie:s.energieJour,aurele:s.aureleJour,aureleAnswer:s.aureleAnswer,boss:s.bossJour}},
-          votesJour:{}, sommeilJour:false, energieJour:0,
+          votesJour:{}, sommeilJour:false, energieJour:0, journeeScellee:null,
           aureleJour:null, aureleAnswer:null,
           bossJour: s.lastWeek !== weekStart ? false : s.bossJour,
           lastWeek: weekStart,
@@ -3036,7 +3048,7 @@ export default function App() {
           </div>
         )}
 
-        {tab==="votes"&&<VotesScreen state={state} onVote={handleVote} onSommeil={handleSommeil} onEnergie={n=>update({energieJour:n})} onAurele={()=>{ const q=getNextAurele(state.usedAureles||[]); update({aureleJour:q,usedAureles:[...(state.usedAureles||[]),q]}); }} onAureleAnswer={t=>update({aureleAnswer:t})} onBoss={handleBoss} onDayClose={()=>setShowDayClose(true)} onProgCheck={handleProgCheck}/>}
+        {tab==="votes"&&<VotesScreen state={state} onVote={handleVote} onSommeil={handleSommeil} onEnergie={n=>update({energieJour:n})} onAurele={()=>{ const q=getNextAurele(state.usedAureles||[]); update({aureleJour:q,usedAureles:[...(state.usedAureles||[]),q]}); }} onAureleAnswer={t=>update({aureleAnswer:t})} onBoss={handleBoss} onDayClose={handleScellerJournee} onProgCheck={handleProgCheck}/>}
         {tab==="profil"&&<ProfileScreen state={state} onKryos={setKryos}/>}
         {tab==="quetes"&&<QuestsScreen state={state} onChangeFacette={handleChangeFacette} onKryos={setKryos}/>}
         {tab==="retour"&&<FeedbackScreen state={state} onSubmit={handleFeedback}/>}
